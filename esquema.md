@@ -1,3 +1,4 @@
+```mermaid
 flowchart TD
     A((Inicio)) --> B[Inicializar parámetros generales]
     B --> C[Definir lista de políticas<br/>r, Q a evaluar]
@@ -37,3 +38,4 @@ flowchart TD
     S --> E
     
     R -->|No| T((Fin))
+```

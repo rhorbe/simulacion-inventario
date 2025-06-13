@@ -77,11 +77,17 @@ def costo_unitario_pedido(q):
 
 
 def imprimir_resultados(resultado):
+    costo_faltante = resultado["costo_faltante"]
+    costo_almacenar = resultado["costo_alm"]
+    costo_pedidos = resultado["costo_pedidos"]
+    costo_total = costo_faltante + costo_almacenar + costo_pedidos
+
     print(f"\nPolítica (r={resultado['r']}, Q={resultado['Q']}):")
     print(f"  Ingresos:        ${resultado['ingresos']:.2f}")
     print(f"  Costo almacén:   ${resultado['costo_alm']:.2f}")
     print(f"  Costo faltantes: ${resultado['costo_faltante']:.2f}")
     print(f"  Costo pedidos:   ${resultado['costo_pedidos']:.2f}")
+    print(f"  Costo total:     ${costo_total:.2f}")
     print(f"  Ganancia neta:   ${resultado['ganancia']:.2f}")
 
 

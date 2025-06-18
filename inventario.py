@@ -1,3 +1,5 @@
+import time
+from evento import Evento
 import numpy as np
 import random
 
@@ -90,6 +92,18 @@ def imprimir_resultados(resultado):
     print(f"  Costo total:     ${costo_total:.2f}")
     print(f"  Ganancia neta:   ${resultado['ganancia']:.2f}")
 
+def existen_eventos_pendientes(lista_eventos, dia):
+    """
+    Verifica si hay eventos pendientes para el día actual.
+
+    Args:
+        lista_eventos (list): Lista de eventos pendientes.
+        dia (int): Día actual.
+
+    Returns:
+        bool: True si hay eventos pendientes, False en caso contrario.
+    """
+    return any(evento.get_dia() >= dia for evento in lista_eventos)
 
 def simular_politica(r, Q):
     """
@@ -103,46 +117,60 @@ def simular_politica(r, Q):
         dict: Diccionario con los resultados de la simulación.
     """
     inventario = INVENTARIO_INICIAL
-    pedidos_pendientes = (
-        []
-    )  # Lista de pedidos pendientes (tuplas de (día_llegada, cantidad))
+    lista_eventos = [Evento("demanda", 0, generar_demanda())]
 
-    costo_almancenamiento = 0
+    costo_almacenamiento = 0
     costo_faltante = 0
     costo_pedidos = 0
     ingresos = 0
 
-    for dia in range(DIAS_SIMULACION):
+    while lista_eventos:
+        evento_actual = lista_eventos.pop(0)
+        tipo_evento = evento_actual.get_tipo()
+        dia = evento_actual.get_dia()
 
-        # Llegada de pedidos
-        inventario, pedidos_pendientes = procesar_llegada_pedidos(
-            dia, inventario, pedidos_pendientes
-        )
+        if dia >= DIAS_SIMULACION: break
 
-        # Demanda del día
-        demanda = generar_demanda()
-        ventas, faltante = calcular_resultados_diarios(demanda, inventario)
-        inventario -= ventas
+        match tipo_evento:
+            case "demanda":
+                demanda = evento_actual.get_cantidad()
+                ventas, faltante = calcular_resultados_diarios(demanda, inventario)
+                inventario -= ventas
+                ingresos += ventas * PRECIO_VENTA
+                costo_faltante += faltante * COSTO_FALTANTE
+            case "llegada_pedido":
+                cantidad = evento_actual.get_cantidad()
+                inventario += cantidad
 
-        # Pedidos
         if inventario < r:
-            pedidos_pendientes, costo_pedidos = procesar_reposicion(
-                dia, Q, pedidos_pendientes, costo_pedidos
-            )
+            nuevoPedido = Evento("llegada_pedido", dia + generar_tiempo_entrega(), Q)
+            costo_pedidos += Q * costo_unitario_pedido(Q)
+            lista_eventos.append(nuevoPedido)
+            lista_eventos.sort(key=lambda x: x.get_dia())
 
-        # Registrar métricas
-        ingresos += ventas * PRECIO_VENTA
-        costo_faltante += faltante * COSTO_FALTANTE
-        costo_almancenamiento += inventario * COSTO_ALMACENAR
+        
+        costo_almacenamiento += inventario * COSTO_ALMACENAR
 
-    costo_total = costo_almancenamiento + costo_faltante + costo_pedidos
+        # Generar nueva demanda para el siguiente día
+        # Tengo que verificar si ya se procesaron todos los eventos del dia actual para podier generar la nueva demanda
+
+        # Si no hay eventos pendientes para el día siguiente, generar una nueva demanda
+        if not existen_eventos_pendientes(lista_eventos, dia + 1):
+            nueva_demanda = Evento("demanda", dia + 1, generar_demanda())
+            lista_eventos.append(nueva_demanda)
+
+        # Ordenar eventos por día
+        lista_eventos.sort(key=lambda x: x.get_dia())
+    
+    # Calcular costos finales
+    costo_total = costo_almacenamiento + costo_faltante + costo_pedidos
     ganancia = ingresos - costo_total
 
     return {
         "r": r,
         "Q": Q,
         "ingresos": ingresos,
-        "costo_alm": costo_almancenamiento,
+        "costo_alm": costo_almacenamiento,
         "costo_faltante": costo_faltante,
         "costo_pedidos": costo_pedidos,
         "ganancia": ganancia,
@@ -188,7 +216,3 @@ def simular():
     for politica in politicas:
         resultado = simular_politica(politica["r"], politica["Q"])
         imprimir_resultados(resultado)
-
-
-if __name__ == "__main__":
-    simular()

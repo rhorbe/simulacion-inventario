@@ -2,27 +2,22 @@ import time
 from evento import Evento
 import numpy as np
 import random
+from config import (
+    INVENTARIO_INICIAL, 
+    DEMANDA_MEDIA, 
+    PLAZO_ENTREGA_MIN, 
+    PLAZO_ENTREGA_MAX,
+    COSTO_ALMACENAR, 
+    COSTO_FALTANTE, 
+    COSTO_PEDIDO_PEQUENO, 
+    COSTO_PEDIDO_GRANDE,
+    PRECIO_VENTA,
+    DIAS_SIMULACION,
+    ANIOS_SIMULACION
+)
 
-# Parámetros generales de la simulación
 
-# Unidades
-INVENTARIO_INICIAL = 720
-DEMANDA_MEDIA = 200  # Media diaria para Poisson
-PLAZO_ENTREGA_MIN = 1
-PLAZO_ENTREGA_MAX = 5
-
-# Costos
-COSTO_ALMACENAR = 150  # $ por unidad por dia
-COSTO_FALTANTE = 380  # $ por unidad
-COSTO_PEDIDO_PEQUENO = 40  # $ por unidad si Q < 300
-COSTO_PEDIDO_GRANDE = 30  # $ por unidad si Q ≥ 300
-
-# Precios
-PRECIO_VENTA = 250
-
-# Tiempo
-DIAS_SIMULACION = 5 * 365  # 5 años
-
+TIEMPO_TOTAL_SIMULACION = DIAS_SIMULACION * ANIOS_SIMULACION  # Total de días de simulación
 # Lista de politicas a comparar: cada tupla es (r, Q)
 politicas = [
     {"r": 40, "Q": 140},  # politica actual
@@ -64,7 +59,7 @@ def generar_tiempo_entrega():
     return random.randint(PLAZO_ENTREGA_MIN, PLAZO_ENTREGA_MAX)
 
 
-def costo_unitario_pedido(q):
+def costo_unitario_pedido(q, costo_pedido_pequeno=COSTO_PEDIDO_PEQUENO, costo_pedido_grande=COSTO_PEDIDO_GRANDE):
     """
     Calcula el costo unitario de un pedido según su cantidad.
 
@@ -75,7 +70,7 @@ def costo_unitario_pedido(q):
         float: Costo unitario del pedido.
     """
 
-    return COSTO_PEDIDO_PEQUENO if q < 300 else COSTO_PEDIDO_GRANDE
+    return costo_pedido_pequeno if q < 300 else costo_pedido_grande
 
 
 def imprimir_resultados(resultado):
@@ -105,7 +100,7 @@ def existen_eventos_pendientes(lista_eventos, dia):
     """
     return any(evento.get_dia() >= dia for evento in lista_eventos)
 
-def simular_politica(r, Q):
+def simular_politica(r, Q, dias_simulacion=TIEMPO_TOTAL_SIMULACION, **kwargs):
     """
     Simula la política de inventario dada por (r, Q) durante DIAS_SIMULACION días.
 
@@ -116,11 +111,17 @@ def simular_politica(r, Q):
     Returns:
         dict: Diccionario con los resultados de la simulación.
     """
-    inventario = INVENTARIO_INICIAL
+    inventario = kwargs.get("inventario_inicial", INVENTARIO_INICIAL)
+    precio_venta = kwargs.get("precio_venta", PRECIO_VENTA)
+    costo_almacenar = kwargs.get("costo_almacenar", COSTO_ALMACENAR)
+    costo_por_faltante = kwargs.get("costo_faltante", COSTO_FALTANTE)
+    costo_pedido_pequeno = kwargs.get("costo_pedido_pequeno", COSTO_PEDIDO_PEQUENO)
+    costo_pedido_grande = kwargs.get("costo_pedido_grande", COSTO_PEDIDO_GRANDE)
+    
     lista_eventos = [Evento("demanda", 0, generar_demanda())]
 
     costo_almacenamiento = 0
-    costo_faltante = 0
+    costo_total_faltante = 0
     costo_pedidos = 0
     ingresos = 0
 
@@ -129,27 +130,27 @@ def simular_politica(r, Q):
         tipo_evento = evento_actual.get_tipo()
         dia = evento_actual.get_dia()
 
-        if dia >= DIAS_SIMULACION: break
+        if dia >= dias_simulacion: break
 
         match tipo_evento:
             case "demanda":
                 demanda = evento_actual.get_cantidad()
                 ventas, faltante = calcular_resultados_diarios(demanda, inventario)
                 inventario -= ventas
-                ingresos += ventas * PRECIO_VENTA
-                costo_faltante += faltante * COSTO_FALTANTE
+                ingresos += ventas * precio_venta
+                costo_total_faltante += faltante * costo_por_faltante
             case "llegada_pedido":
                 cantidad = evento_actual.get_cantidad()
                 inventario += cantidad
 
         if inventario < r:
             nuevoPedido = Evento("llegada_pedido", dia + generar_tiempo_entrega(), Q)
-            costo_pedidos += Q * costo_unitario_pedido(Q)
+            costo_pedidos += Q * costo_unitario_pedido(Q, costo_pedido_pequeno, costo_pedido_grande)
             lista_eventos.append(nuevoPedido)
             lista_eventos.sort(key=lambda x: x.get_dia())
 
         
-        costo_almacenamiento += inventario * COSTO_ALMACENAR
+        costo_almacenamiento += inventario * costo_almacenar
 
         # Generar nueva demanda para el siguiente día
         # Tengo que verificar si ya se procesaron todos los eventos del dia actual para podier generar la nueva demanda
@@ -163,7 +164,7 @@ def simular_politica(r, Q):
         lista_eventos.sort(key=lambda x: x.get_dia())
     
     # Calcular costos finales
-    costo_total = costo_almacenamiento + costo_faltante + costo_pedidos
+    costo_total = costo_almacenamiento + costo_total_faltante + costo_pedidos
     ganancia = ingresos - costo_total
 
     return {
@@ -171,7 +172,7 @@ def simular_politica(r, Q):
         "Q": Q,
         "ingresos": ingresos,
         "costo_alm": costo_almacenamiento,
-        "costo_faltante": costo_faltante,
+        "costo_faltante": costo_total_faltante,
         "costo_pedidos": costo_pedidos,
         "ganancia": ganancia,
     }

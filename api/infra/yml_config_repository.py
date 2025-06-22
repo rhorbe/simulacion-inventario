@@ -1,11 +1,12 @@
 import yaml
 import os
 from typing import Dict, Any, List
+from api.domain.config import Config
 
-class Config:
+class YmlConfigRepository(Config):
     """
-    Clase Singleton para manejar la configuración del proyecto.
-    Permite acceder a las secciones de configuración como atributos.
+    Implementación de Config que carga la configuración desde un archivo YAML.
+    Implementa el patrón Singleton para asegurar una única instancia.
     """
     
     _instance = None
@@ -17,7 +18,7 @@ class Config:
         Retorna la misma instancia si ya existe.
         """
         if cls._instance is None:
-            cls._instance = super(Config, cls).__new__(cls)
+            cls._instance = super(YmlConfigRepository, cls).__new__(cls)
         return cls._instance
     
     def __init__(self, config_path: str = None):
@@ -37,48 +38,22 @@ class Config:
             
             self._initialized = True
     
-    @property
-    def simulacion(self) -> Dict[str, Any]:
+    def get_simulacion(self) -> Dict[str, Any]:
         """Sección de parámetros de simulación."""
         return self._config.get('simulacion', {})
     
-    @property
-    def entrega(self) -> Dict[str, Any]:
+    def get_entrega(self) -> Dict[str, Any]:
         """Sección de parámetros de entrega."""
         return self._config.get('entrega', {})
     
-    @property
-    def costos(self) -> Dict[str, Any]:
+    def get_costos(self) -> Dict[str, Any]:
         """Sección de costos."""
         return self._config.get('costos', {})
     
-    @property
-    def precios(self) -> Dict[str, Any]:
+    def get_precios(self) -> Dict[str, Any]:
         """Sección de precios."""
         return self._config.get('precios', {})
     
-    @property
-    def politicas_abastecimiento(self) -> List[Dict[str, Any]]:
+    def get_politicas_abastecimiento(self) -> List[Dict[str, Any]]:
         """Lista de políticas de abastecimiento."""
-        return self._config.get('politicas_abastecimiento', [])
-
-# Instancia global de configuración
-config = Config()
-
-# Variables de compatibilidad para mantener la interfaz existente
-INVENTARIO_INICIAL = config.simulacion.get('inventario_inicial')
-DEMANDA_MEDIA = config.simulacion.get('demanda_media')
-PLAZO_ENTREGA_MIN = config.entrega.get('plazo_min')
-PLAZO_ENTREGA_MAX = config.entrega.get('plazo_max')
-
-COSTO_ALMACENAR = config.costos.get('almacenar')
-COSTO_FALTANTE = config.costos.get('faltante')
-COSTO_PEDIDO_PEQUENO = config.costos.get('pedido_pequeno')
-COSTO_PEDIDO_GRANDE = config.costos.get('pedido_grande')
-
-PRECIO_VENTA = config.precios.get('venta')
-
-DIAS_SIMULACION = config.simulacion.get('dias_simulacion')
-ANIOS_SIMULACION = config.simulacion.get('anios_simulacion')
-
-POLITICAS_ABASTECIMIENTO = config.politicas_abastecimiento
+        return self._config.get('politicas_abastecimiento', []) 

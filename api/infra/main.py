@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from inventario import simular_politica
-from config import config
+from api.application.inventario import simular_politica
+from api.infra.yml_config_repository import YmlConfigRepository
 
 app = FastAPI()
+config = YmlConfigRepository()
 
 class PoliticaAbastecimiento(BaseModel):
     punto_reorden: Optional[int] = None

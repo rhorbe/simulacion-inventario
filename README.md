@@ -27,12 +27,12 @@ Sistema de simulación de políticas de inventario basado en el modelo (r, Q) im
 
 2. **Instalar dependencias:**
    ```bash
-   pip install -r requirements.txt
+   pip install -r api/requirements.txt
    ```
 
 3. **Ejecutar la API:**
    ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   uvicorn api.infra.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
 4. **Acceder a la documentación:**
@@ -44,13 +44,13 @@ Sistema de simulación de políticas de inventario basado en el modelo (r, Q) im
 
 ```bash
 # Ejecutar en modo desarrollo (con auto-reload)
-uvicorn main:app --reload
+uvicorn api.infra.main:app --reload
 
 # Ejecutar en modo producción
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn api.infra.main:app --host 0.0.0.0 --port 8000
 
 # Ejecutar con logs detallados
-uvicorn main:app --log-level debug
+uvicorn api.infra.main:app --log-level debug
 ```
 
 ### 🔧 Debugging
@@ -71,7 +71,7 @@ uvicorn main:app --log-level debug
                "request": "launch",
                "module": "uvicorn",
                "args": [
-                   "main:app",
+                   "api.infra.main:app",
                    "--reload",
                    "--host",
                    "0.0.0.0",
@@ -88,7 +88,7 @@ uvicorn main:app --log-level debug
                "name": "FastAPI Debug (Simple)",
                "type": "python",
                "request": "launch",
-               "program": "${workspaceFolder}/main.py",
+               "program": "${workspaceFolder}/api/infra/main.py",
                "console": "integratedTerminal",
                "cwd": "${workspaceFolder}",
                "env": {
@@ -100,7 +100,7 @@ uvicorn main:app --log-level debug
    ```
 
 2. **Configurar breakpoints:**
-   - Abrir `main.py` o `inventario.py`
+   - Abrir `api/infra/main.py` o `api/application/inventario.py`
    - Hacer clic en el margen izquierdo para establecer breakpoints
    - Los breakpoints se marcan con puntos rojos
 
@@ -130,12 +130,12 @@ uvicorn main:app --log-level debug
      - **Name**: `FastAPI Debug`
      - **Script path**: Dejar vacío
      - **Module name**: `uvicorn`
-     - **Parameters**: `main:app --reload --host 0.0.0.0 --port 8000`
+     - **Parameters**: `api.infra.main:app --reload --host 0.0.0.0 --port 8000`
      - **Working directory**: Seleccionar la carpeta del proyecto
      - **Python interpreter**: Seleccionar el intérprete correcto
 
 3. **Configurar breakpoints:**
-   - Abrir cualquier archivo `.py`
+   - Abrir cualquier archivo `.py` en las carpetas `api/domain/`, `api/application/` o `api/infra/`
    - Hacer clic en el margen izquierdo para establecer breakpoints
    - Los breakpoints aparecen como círculos rojos
 
@@ -171,34 +171,54 @@ FASTAPI_ENV=development
 ```
 
 **Puntos de debug recomendados:**
-- `main.py`: Línea 30 (función `simular`)
-- `inventario.py`: Línea 95 (inicio de `simular_politica`)
-- `inventario.py`: Línea 120 (procesamiento de eventos)
-- `config.py`: Línea 25 (carga de configuración)
+- `api/infra/main.py`: Línea 30 (función `simular`)
+- `api/application/inventario.py`: Línea 95 (inicio de `simular_politica`)
+- `api/application/inventario.py`: Línea 120 (procesamiento de eventos)
+- `api/config.py`: Línea 25 (carga de configuración)
 
 ## 📁 Estructura del Proyecto
 
 ```
 simulacion-inventario/
-├── main.py                 # API FastAPI y endpoints
-├── inventario.py           # Lógica de simulación de inventario (desacoplada)
-├── config.py               # Clase Singleton para gestión de configuración
-├── evento.py               # Clase Evento para simulación discreta
-├── config.yml              # Archivo de configuración centralizado
-├── requirements.txt        # Dependencias del proyecto
-├── .gitignore              # Archivos ignorados por Git
-├── README.md               # Documentación del proyecto
-└── esquema.md              # Diagrama de flujo de la simulación
+├── api/                    # Capa de infraestructura y configuración
+│   ├── domain/            # Capa de dominio - entidades y lógica de negocio
+│   │   ├── __init__.py    # Paquete Domain
+│   │   ├── config.py      # Interfaz Config (contrato de configuración)
+│   │   └── evento.py      # Clase Evento para simulación discreta
+│   ├── application/       # Capa de aplicación - casos de uso
+│   │   ├── __init__.py    # Paquete Application
+│   │   └── inventario.py  # Lógica de simulación de inventario (desacoplada)
+│   ├── infra/             # Capa de infraestructura - interfaces externas
+│   │   ├── __init__.py    # Paquete Infrastructure
+│   │   ├── main.py        # API FastAPI y endpoints
+│   │   └── yml_source_config.py # Implementación YAML de Config
+│   ├── config.py          # Punto de entrada de configuración (compatibilidad)
+│   ├── config.yml         # Archivo de configuración centralizado
+│   └── requirements.txt   # Dependencias del proyecto
+├── .gitignore             # Archivos ignorados por Git
+├── README.md              # Documentación del proyecto
+└── esquema.md             # Diagrama de flujo de la simulación
 ```
 
 ### Descripción de Archivos
 
+#### Capa de Infraestructura (`api/infra/`)
 - **`main.py`**: API REST con FastAPI. Define endpoints, modelos de datos y maneja las peticiones HTTP. Es el único punto de entrada para ejecutar simulaciones.
+- **`yml_source_config.py`**: Implementación concreta de la interfaz Config que carga configuración desde archivos YAML.
+
+#### Capa de Aplicación (`api/application/`)
 - **`inventario.py`**: Contiene toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe todos los parámetros como argumentos de función.
-- **`config.py`**: Implementa el patrón Singleton para cargar y gestionar la configuración desde `config.yml`. Solo es utilizado por `main.py` para establecer valores por defecto.
+
+#### Capa de Dominio (`api/domain/`)
+- **`config.py`**: Interfaz abstracta Config que define el contrato para las fuentes de configuración sin dependencias de infraestructura.
 - **`evento.py`**: Define la clase `Evento` utilizada para la simulación discreta de eventos (demandas y llegadas de pedidos).
+
+#### Configuración (`api/`)
+- **`config.py`**: Punto de entrada de configuración que mantiene compatibilidad con el código existente. Importa y expone la implementación YmlSourceConfig.
 - **`config.yml`**: Archivo de configuración centralizado con todos los parámetros de la simulación (costos, tiempos, políticas, etc.).
 - **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto.
+
+#### Documentación
 - **`esquema.md`**: Diagrama de flujo que explica el funcionamiento de la simulación.
 
 ## 🔌 API Documentation

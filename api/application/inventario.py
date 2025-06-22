@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 
-from evento import Evento
+from api.domain.evento import Evento
 
 # Generador de números aleatorios de numpy
 generador_aleatorio = np.random.default_rng(seed=42)

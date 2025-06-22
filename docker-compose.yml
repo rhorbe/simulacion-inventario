@@ -9,10 +9,8 @@ services:
     container_name: simulacion-inventario-backend
     ports:
       - "8000:8000"
-    environment:
-      - PYTHONPATH=/app
     volumes:
-      - ./api:/app
+      - ./api:/app/api
     networks:
       - simulacion-network
     healthcheck:

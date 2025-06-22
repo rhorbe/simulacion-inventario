@@ -1,0 +1,39 @@
+# Configuración de la simulación de inventario
+
+# Parámetros generales de la simulación
+simulacion:
+  inventario_inicial: 720
+  demanda_media: 200  # Media diaria para Poisson
+  dias_simulacion: 365
+  anios_simulacion: 5
+
+# Parámetros de entrega
+entrega:
+  plazo_min: 1
+  plazo_max: 5
+
+# Costos
+costos:
+  almacenar: 150  # $ por unidad por dia
+  faltante: 380   # $ por unidad
+  pedido_pequeno: 40  # $ por unidad si Q < 300
+  pedido_grande: 30   # $ por unidad si Q ≥ 300
+
+# Precios
+precios:
+  venta: 250
+
+# Políticas de abastecimiento
+politicas_abastecimiento:
+  - punto_reorden: 40
+    cantidad_pedido: 140
+  - punto_reorden: 30
+    cantidad_pedido: 140
+  - punto_reorden: 60
+    cantidad_pedido: 140
+  - punto_reorden: 40
+    cantidad_pedido: 100
+  - punto_reorden: 40
+    cantidad_pedido: 200
+  - punto_reorden: 50
+    cantidad_pedido: 180 

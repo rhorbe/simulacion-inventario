@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Backend - API FastAPI
+  backend:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: simulacion-inventario-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./api:/app
+    networks:
+      - simulacion-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Frontend - Nginx con archivos estáticos
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: simulacion-inventario-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - simulacion-network
+    restart: unless-stopped
+
+networks:
+  simulacion-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  api_data: 

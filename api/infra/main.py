@@ -25,10 +25,6 @@ class SimulacionRequest(BaseModel):
     politicas_abastecimiento: List[PoliticaAbastecimiento] = Field(default=config.politicas_abastecimiento)
     demanda: int = Field(default=config.simulacion.get('demanda_media'))
 
-@app.get("/")
-def read_root():
-    return {"Esto es": "nuestro inventario"}
-
 @app.post("/simular")
 def simular(data: SimulacionRequest):
     politicas = data.politicas_abastecimiento

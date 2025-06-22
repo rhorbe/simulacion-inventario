@@ -1,0 +1,137 @@
+openapi: 3.0.1
+info:
+  title: FastAPI
+  version: 0.1.0
+paths:
+  /simular:
+    post:
+      summary: Simular
+      operationId: simular_simular_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulacionRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    PoliticaAbastecimiento:
+      properties:
+        punto_reorden:
+          type: integer
+          title: Punto Reorden
+        cantidad_pedido:
+          type: integer
+          title: Cantidad Pedido
+      type: object
+      required:
+        - cantidad_pedido
+      title: PoliticaAbastecimiento
+    SimulacionRequest:
+      properties:
+        inventario_inicial:
+          type: integer
+          title: Inventario Inicial
+          default: 720
+        plazo_entrega_min:
+          type: integer
+          title: Plazo Entrega Min
+          default: 1
+        plazo_entrega_max:
+          type: integer
+          title: Plazo Entrega Max
+          default: 5
+        dias_simulacion:
+          type: integer
+          title: Dias Simulacion
+          default: 365
+        anios_simulacion:
+          type: integer
+          title: Anios Simulacion
+          default: 5
+        costo_almacenar:
+          type: number
+          title: Costo Almacenar
+          default: 150
+        costo_faltante:
+          type: number
+          title: Costo Faltante
+          default: 380
+        costo_pedido_pequenio:
+          type: number
+          title: Costo Pedido Pequenio
+          default: 40
+        costo_pedido_grande:
+          type: number
+          title: Costo Pedido Grande
+          default: 30
+        precio_venta:
+          type: number
+          title: Precio Venta
+          default: 250
+        politicas_abastecimiento:
+          items:
+            $ref: '#/components/schemas/PoliticaAbastecimiento'
+          type: array
+          title: Politicas Abastecimiento
+          default:
+            - punto_reorden: 40
+              cantidad_pedido: 140
+            - punto_reorden: 30
+              cantidad_pedido: 140
+            - punto_reorden: 60
+              cantidad_pedido: 140
+            - punto_reorden: 40
+              cantidad_pedido: 100
+            - punto_reorden: 40
+              cantidad_pedido: 200
+            - punto_reorden: 50
+              cantidad_pedido: 180
+        demanda:
+          type: integer
+          title: Demanda
+          default: 200
+      type: object
+      title: SimulacionRequest
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError

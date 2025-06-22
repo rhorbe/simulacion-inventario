@@ -1,0 +1,17 @@
+{
+  "name": "simulacion-inventario-frontend",
+  "version": "1.0.0",
+  "description": "Frontend para simulación de inventario",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server src -p 3000 -c-1",
+    "build": "echo 'Build completado'",
+    "dev": "http-server src -p 3000 -c-1 -o"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "keywords": ["inventario", "simulacion", "frontend"],
+  "author": "Equipo de Desarrollo",
+  "license": "MIT"
+} 

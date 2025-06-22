@@ -3,9 +3,27 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from api.application.inventario import simular_politica
 from api.infra.yml_config_repository import YmlConfigRepository
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
 config = YmlConfigRepository()
+app = FastAPI()
+
+# Configuración de CORS más permisiva para desarrollo
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost",
+    "http://127.0.0.1",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
 
 class PoliticaAbastecimiento(BaseModel):
     punto_reorden: Optional[int] = None
@@ -49,3 +67,11 @@ def simular(data: SimulacionRequest):
         ))
     
     return {'resultados': resultados}
+
+@app.get("/")
+def read_root():
+    return {"message": "API de Simulación de Inventario funcionando correctamente"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "message": "API funcionando"}

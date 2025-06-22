@@ -1,12 +1,13 @@
-# Simulación de Inventario - API
+# Simulación de Inventario - API y Frontend
 
-Sistema de simulación de políticas de inventario basado en el modelo (r, Q) implementado como API REST con FastAPI. Permite simular diferentes políticas de abastecimiento y comparar sus resultados financieros.
+Sistema completo de simulación de políticas de inventario basado en el modelo (r, Q) implementado como API REST con FastAPI y frontend web interactivo.
 
 ## 📋 Tabla de Contenidos
 
 - [Get Started](#get-started)
 - [Estructura del Proyecto](#estructura-del-proyecto)
 - [API Documentation](#api-documentation)
+- [Frontend](#frontend)
 - [Lógica de Simulación](#lógica-de-simulación)
 - [Diagrama de Flujo](#diagrama-de-flujo)
 
@@ -15,33 +16,53 @@ Sistema de simulación de políticas de inventario basado en el modelo (r, Q) im
 ### Prerrequisitos
 
 - Python 3.8 o superior
+- Node.js 20 o superior (para el frontend)
 - pip (gestor de paquetes de Python)
+- npm (gestor de paquetes de Node.js)
 
-### Instalación
+### Instalación y Ejecución
 
-1. **Clonar el repositorio:**
-   ```bash
-   git clone <url-del-repositorio>
-   cd simulacion-inventario
-   ```
+#### 1. Backend (API)
 
-2. **Instalar dependencias:**
+1. **Instalar dependencias Python:**
    ```bash
    pip install -r api/requirements.txt
    ```
 
-3. **Ejecutar la API:**
+2. **Ejecutar la API:**
    ```bash
    uvicorn api.infra.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-4. **Acceder a la documentación:**
+3. **Verificar la API:**
    - **Swagger UI**: http://localhost:8000/docs
    - **ReDoc**: http://localhost:8000/redoc
    - **API Base**: http://localhost:8000
 
+#### 2. Frontend
+
+1. **Navegar al directorio frontend:**
+   ```bash
+   cd frontend
+   ```
+
+2. **Instalar dependencias:**
+   ```bash
+   npm install
+   ```
+
+3. **Ejecutar el frontend:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Acceder al frontend:**
+   - **URL**: http://localhost:3000
+   - Se abrirá automáticamente en el navegador
+
 ### Comandos Útiles
 
+#### Backend
 ```bash
 # Ejecutar en modo desarrollo (con auto-reload)
 uvicorn api.infra.main:app --reload
@@ -51,6 +72,18 @@ uvicorn api.infra.main:app --host 0.0.0.0 --port 8000
 
 # Ejecutar con logs detallados
 uvicorn api.infra.main:app --log-level debug
+```
+
+#### Frontend
+```bash
+# Ejecutar en modo desarrollo
+npm run dev
+
+# Ejecutar en modo producción
+npm start
+
+# Construir para producción
+npm run build
 ```
 
 ### 🔧 Debugging
@@ -180,7 +213,7 @@ FASTAPI_ENV=development
 
 ```
 simulacion-inventario/
-├── api/                    # Capa de infraestructura y configuración
+├── api/                    # Backend - API y lógica de simulación
 │   ├── domain/            # Capa de dominio - entidades y lógica de negocio
 │   │   ├── __init__.py    # Paquete Domain
 │   │   ├── config.py      # Interfaz Config (contrato de configuración)
@@ -195,6 +228,20 @@ simulacion-inventario/
 │   ├── config.py          # Punto de entrada de configuración (compatibilidad)
 │   ├── config.yml         # Archivo de configuración centralizado
 │   └── requirements.txt   # Dependencias del proyecto
+├── frontend/              # Frontend - Interfaz web interactiva
+│   ├── src/               # Código fuente del frontend
+│   │   ├── index.html     # Página principal
+│   │   ├── css/
+│   │   │   └── styles.css # Estilos personalizados
+│   │   └── js/
+│   │       ├── config.js  # Configuración de la aplicación
+│   │       ├── api.js     # Comunicación con la API
+│   │       ├── form.js    # Gestión del formulario
+│   │       ├── charts.js  # Gráficos y visualizaciones
+│   │       └── app.js     # Lógica principal de la aplicación
+│   ├── package.json       # Dependencias y scripts del frontend
+│   ├── start.sh           # Script de inicio alternativo
+│   └── README.md          # Documentación del frontend
 ├── .gitignore             # Archivos ignorados por Git
 ├── README.md              # Documentación del proyecto
 └── esquema.md             # Diagrama de flujo de la simulación
@@ -202,21 +249,39 @@ simulacion-inventario/
 
 ### Descripción de Archivos
 
-#### Capa de Infraestructura (`api/infra/`)
+#### Backend (`api/`)
+
+##### Capa de Infraestructura (`api/infra/`)
 - **`main.py`**: API REST con FastAPI. Define endpoints, modelos de datos y maneja las peticiones HTTP. Es el único punto de entrada para ejecutar simulaciones.
 - **`yml_source_config.py`**: Implementación concreta de la interfaz Config que carga configuración desde archivos YAML.
 
-#### Capa de Aplicación (`api/application/`)
+##### Capa de Aplicación (`api/application/`)
 - **`inventario.py`**: Contiene toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe todos los parámetros como argumentos de función.
 
-#### Capa de Dominio (`api/domain/`)
+##### Capa de Dominio (`api/domain/`)
 - **`config.py`**: Interfaz abstracta Config que define el contrato para las fuentes de configuración sin dependencias de infraestructura.
 - **`evento.py`**: Define la clase `Evento` utilizada para la simulación discreta de eventos (demandas y llegadas de pedidos).
 
-#### Configuración (`api/`)
+##### Configuración (`api/`)
 - **`config.py`**: Punto de entrada de configuración que mantiene compatibilidad con el código existente. Importa y expone la implementación YmlSourceConfig.
 - **`config.yml`**: Archivo de configuración centralizado con todos los parámetros de la simulación (costos, tiempos, políticas, etc.).
 - **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto.
+
+#### Frontend (`frontend/`)
+
+##### Código Fuente (`frontend/src/`)
+- **`index.html`**: Página principal con formulario de simulación y área de resultados
+- **`css/styles.css`**: Estilos personalizados para la interfaz
+- **`js/config.js`**: Configuración de la aplicación (URLs, colores, validaciones)
+- **`js/api.js`**: Módulo para comunicaciones con la API backend
+- **`js/form.js`**: Gestión del formulario y validaciones
+- **`js/charts.js`**: Generación de gráficos con Chart.js
+- **`js/app.js`**: Lógica principal y coordinación de módulos
+
+##### Configuración (`frontend/`)
+- **`package.json`**: Dependencias y scripts de Node.js
+- **`start.sh`**: Script alternativo para ejecutar sin npm
+- **`README.md`**: Documentación específica del frontend
 
 #### Documentación
 - **`esquema.md`**: Diagrama de flujo que explica el funcionamiento de la simulación.
@@ -224,16 +289,6 @@ simulacion-inventario/
 ## 🔌 API Documentation
 
 ### Endpoints Disponibles
-
-#### GET `/`
-Endpoint de prueba que retorna información básica sobre la API.
-
-**Response:**
-```json
-{
-  "Esto es": "nuestro inventario"
-}
-```
 
 #### POST `/simular`
 Endpoint principal que ejecuta la simulación de políticas de inventario.
@@ -323,6 +378,53 @@ class PoliticaAbastecimiento(BaseModel):
   ]
 }
 ```
+
+## 🖥️ Frontend
+
+### Características
+
+- **Formulario Intuitivo**: Interfaz fácil de usar con tooltips explicativos
+- **Gestión Dinámica de Políticas**: Agregar/eliminar políticas de abastecimiento
+- **Validación de Datos**: Validación en tiempo real de todos los parámetros
+- **Visualización de Resultados**: Tabla comparativa y gráficos interactivos
+- **Responsive Design**: Compatible con dispositivos móviles y desktop
+
+### Tecnologías Utilizadas
+
+- **HTML5**: Estructura semántica
+- **CSS3**: Estilos y animaciones
+- **JavaScript ES6+**: Lógica de la aplicación
+- **Bootstrap 5**: Framework CSS responsive
+- **Chart.js**: Gráficos interactivos
+- **Bootstrap Icons**: Iconografía
+
+### Uso del Frontend
+
+#### 1. Configurar Parámetros
+- **Inventario**: Establecer inventario inicial y demanda media
+- **Tiempo**: Definir días por año y años de simulación
+- **Entrega**: Configurar plazos mínimo y máximo de entrega
+- **Costos**: Establecer todos los costos del sistema
+- **Precios**: Definir precio de venta por unidad
+
+#### 2. Agregar Políticas
+- Hacer clic en "Agregar Política" para crear nuevas políticas
+- Configurar punto de reorden (r) y cantidad de pedido (Q)
+- Eliminar políticas innecesarias con el botón X
+
+#### 3. Ejecutar Simulación
+- Hacer clic en "Ejecutar Simulación"
+- Esperar a que se procesen los resultados
+- Revisar la tabla comparativa y los gráficos
+
+#### 4. Analizar Resultados
+- **Tabla**: Comparar métricas entre políticas
+- **Gráfico Financiero**: Visualizar ingresos, costos y ganancias
+- **Gráfico de Costos**: Analizar desglose de costos por tipo
+
+### Configuración de la API
+
+La aplicación está configurada para conectarse a la API en `http://localhost:8000`. Para cambiar la URL de la API, modificar la constante `API_BASE_URL` en `frontend/src/js/config.js`.
 
 ## 🧮 Lógica de Simulación
 
@@ -429,6 +531,7 @@ return {
 - **Plazos de Entrega Variables**: Distribución uniforme entre mínimo y máximo
 - **Costos Dinámicos**: Diferentes costos según tamaño de pedido
 - **Múltiples Políticas**: Comparación simultánea de diferentes estrategias
+- **Desacoplamiento**: El módulo de simulación no depende de configuración externa
 
 ## 📊 Diagrama de Flujo
 

@@ -69,4 +69,5 @@ logs/
 # Archivos temporales
 *.tmp
 *.temp
-*~ 
+*~
+/frontend/node_modules

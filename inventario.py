@@ -1,25 +1,11 @@
-import time
-from evento import Evento
-import numpy as np
 import random
-from config import config
 
+import numpy as np
 
-TIEMPO_TOTAL_SIMULACION = config.simulacion.get('dias_simulacion') * config.simulacion.get('anios_simulacion')  # Total de días de simulación
-# Lista de politicas a comparar: cada tupla es (r, Q)
-politicas = [
-    {"r": 40, "Q": 140},  # politica actual
-    {"r": 30, "Q": 140},
-    {"r": 60, "Q": 140},
-    {"r": 40, "Q": 100},
-    {"r": 40, "Q": 200},
-    {"r": 50, "Q": 180},
-]
-
+from evento import Evento
 
 # Generador de números aleatorios de numpy
 generador_aleatorio = np.random.default_rng(seed=42)
-
 
 def generar_demanda(demanda_media):
     """
@@ -96,6 +82,7 @@ def existen_eventos_pendientes(lista_eventos, dia):
     """
     return any(evento.get_dia() >= dia for evento in lista_eventos)
 
+
 def simular_politica(r, Q, dias_simulacion, **kwargs):
     """
     Simula la política de inventario dada por (r, Q) durante dias_simulacion días.
@@ -109,15 +96,15 @@ def simular_politica(r, Q, dias_simulacion, **kwargs):
     Returns:
         dict: Diccionario con los resultados de la simulación.
     """
-    inventario = kwargs.get("inventario_inicial", config.simulacion.get('inventario_inicial'))
-    precio_venta = kwargs.get("precio_venta", config.precios.get('venta'))
-    costo_almacenar = kwargs.get("costo_almacenar", config.costos.get('almacenar'))
-    costo_por_faltante = kwargs.get("costo_faltante", config.costos.get('faltante'))
-    costo_pedido_pequeno = kwargs.get("costo_pedido_pequeno", config.costos.get('pedido_pequeno'))
-    costo_pedido_grande = kwargs.get("costo_pedido_grande", config.costos.get('pedido_grande'))
-    demanda_media = kwargs.get("demanda", config.simulacion.get('demanda_media'))
-    plazo_entrega_min = kwargs.get("plazo_entrega_min", config.entrega.get('plazo_min'))
-    plazo_entrega_max = kwargs.get("plazo_entrega_max", config.entrega.get('plazo_max'))
+    inventario = kwargs.get("inventario_inicial")
+    precio_venta = kwargs.get("precio_venta")
+    costo_almacenar = kwargs.get("costo_almacenar")
+    costo_por_faltante = kwargs.get("costo_faltante")
+    costo_pedido_pequeno = kwargs.get("costo_pedido_pequeno")
+    costo_pedido_grande = kwargs.get("costo_pedido_grande")
+    demanda_media = kwargs.get("demanda")
+    plazo_entrega_min = kwargs.get("plazo_entrega_min")
+    plazo_entrega_max = kwargs.get("plazo_entrega_max")
     
     lista_eventos = [Evento("demanda", 0, generar_demanda(demanda_media))]
 
@@ -198,18 +185,3 @@ def procesar_llegada_pedidos(dia, inventario, pedidos_pendientes):
     pedidos_pendientes = [p for p in pedidos_pendientes if p[0] > dia]
 
     return inventario, pedidos_pendientes
-
-
-def procesar_reposicion(dia, q, pedidos_pendientes, costo_pedidos):
-
-    llegada_pedido = dia + generar_tiempo_entrega(config.entrega.get('plazo_min'), config.entrega.get('plazo_max'))
-    pedidos_pendientes.append((llegada_pedido, q))
-    costo_pedidos += q * costo_unitario_pedido(q, config.costos.get('pedido_pequeno'), config.costos.get('pedido_grande'))
-
-    return pedidos_pendientes, costo_pedidos
-
-
-def simular():
-    for politica in politicas:
-        resultado = simular_politica(politica["r"], politica["Q"], TIEMPO_TOTAL_SIMULACION)
-        imprimir_resultados(resultado)

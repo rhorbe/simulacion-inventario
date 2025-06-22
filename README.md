@@ -171,7 +171,7 @@ FASTAPI_ENV=development
 ```
 
 **Puntos de debug recomendados:**
-- `main.py`: Línea 45 (función `simular`)
+- `main.py`: Línea 30 (función `simular`)
 - `inventario.py`: Línea 95 (inicio de `simular_politica`)
 - `inventario.py`: Línea 120 (procesamiento de eventos)
 - `config.py`: Línea 25 (carga de configuración)
@@ -181,21 +181,21 @@ FASTAPI_ENV=development
 ```
 simulacion-inventario/
 ├── main.py                 # API FastAPI y endpoints
-├── inventario.py           # Lógica de simulación de 
-├── config.py               # Clase Singleton para 
-├── evento.py               # Clase Evento para 
-├── config.yml              # Archivo de configuración 
+├── inventario.py           # Lógica de simulación de inventario (desacoplada)
+├── config.py               # Clase Singleton para gestión de configuración
+├── evento.py               # Clase Evento para simulación discreta
+├── config.yml              # Archivo de configuración centralizado
 ├── requirements.txt        # Dependencias del proyecto
 ├── .gitignore              # Archivos ignorados por Git
 ├── README.md               # Documentación del proyecto
-└── esquema.md              # Diagrama de flujo de la 
+└── esquema.md              # Diagrama de flujo de la simulación
 ```
 
 ### Descripción de Archivos
 
-- **`main.py`**: API REST con FastAPI. Define endpoints, modelos de datos y maneja las peticiones HTTP.
-- **`inventario.py`**: Contiene toda la lógica de simulación del sistema de inventario, incluyendo generación de eventos y cálculos financieros.
-- **`config.py`**: Implementa el patrón Singleton para cargar y gestionar la configuración desde `config.yml`.
+- **`main.py`**: API REST con FastAPI. Define endpoints, modelos de datos y maneja las peticiones HTTP. Es el único punto de entrada para ejecutar simulaciones.
+- **`inventario.py`**: Contiene toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe todos los parámetros como argumentos de función.
+- **`config.py`**: Implementa el patrón Singleton para cargar y gestionar la configuración desde `config.yml`. Solo es utilizado por `main.py` para establecer valores por defecto.
 - **`evento.py`**: Define la clase `Evento` utilizada para la simulación discreta de eventos (demandas y llegadas de pedidos).
 - **`config.yml`**: Archivo de configuración centralizado con todos los parámetros de la simulación (costos, tiempos, políticas, etc.).
 - **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto.
@@ -312,21 +312,29 @@ La simulación utiliza el **método de eventos discretos** para modelar el siste
 - **Eventos de Demanda**: Generación de demanda diaria con distribución Poisson
 - **Eventos de Llegada de Pedidos**: Recepción de pedidos según plazos de entrega
 
+### Flujo de Ejecución
+
+1. **Punto de Entrada**: La API recibe una petición POST en `/simular` con los parámetros de simulación
+2. **Procesamiento**: El controlador en `main.py` itera sobre las políticas y llama a `simular_politica` para cada una
+3. **Simulación**: Cada política se simula de forma independiente y desacoplada
+4. **Resultados**: Se retornan los resultados de todas las políticas simuladas
+
 ### Método Principal: `simular_politica(r, Q, dias_simulacion, **kwargs)`
 
 #### Parámetros de Entrada
 - `r` (int): Punto de reorden (nivel de inventario que dispara un nuevo pedido)
 - `Q` (int): Cantidad a pedir (tamaño del lote de reposición)
 - `dias_simulacion` (int): Período total de simulación en días
-- `**kwargs`: Parámetros adicionales de configuración
+- `**kwargs`: Parámetros adicionales de configuración (todos los valores de costos, tiempos, etc.)
 
 #### Flujo de Ejecución
 
 1. **Inicialización:**
    ```python
-   # Cargar parámetros desde configuración o kwargs
-   inventario = kwargs.get("inventario_inicial", config.simulacion.get('inventario_inicial'))
-   precio_venta = kwargs.get("precio_venta", config.precios.get('venta'))
+   # Recibir parámetros desde kwargs (sin dependencia de configuración)
+   inventario = kwargs.get("inventario_inicial")
+   precio_venta = kwargs.get("precio_venta")
+   costo_almacenar = kwargs.get("costo_almacenar")
    # ... otros parámetros
    
    # Crear primer evento de demanda

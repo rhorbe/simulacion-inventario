@@ -31,7 +31,7 @@ Sistema completo de simulación de políticas de inventario basado en el modelo 
 
 2. **Ejecutar la API:**
    ```bash
-   uvicorn api.infra.main:app --reload --host 0.0.0.0 --port 8000
+   uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
 3. **Verificar la API:**
@@ -65,13 +65,13 @@ Sistema completo de simulación de políticas de inventario basado en el modelo 
 #### Backend
 ```bash
 # Ejecutar en modo desarrollo (con auto-reload)
-uvicorn api.infra.main:app --reload
+uvicorn api.main:app --reload
 
 # Ejecutar en modo producción
-uvicorn api.infra.main:app --host 0.0.0.0 --port 8000
+uvicorn api.main:app --host 0.0.0.0 --port 8000
 
 # Ejecutar con logs detallados
-uvicorn api.infra.main:app --log-level debug
+uvicorn api.main:app --log-level debug
 ```
 
 #### Frontend
@@ -104,7 +104,7 @@ npm run build
                "request": "launch",
                "module": "uvicorn",
                "args": [
-                   "api.infra.main:app",
+                   "api.main:app",
                    "--reload",
                    "--host",
                    "0.0.0.0",
@@ -121,7 +121,7 @@ npm run build
                "name": "FastAPI Debug (Simple)",
                "type": "python",
                "request": "launch",
-               "program": "${workspaceFolder}/api/infra/main.py",
+               "program": "${workspaceFolder}/api/main.py",
                "console": "integratedTerminal",
                "cwd": "${workspaceFolder}",
                "env": {
@@ -133,7 +133,7 @@ npm run build
    ```
 
 2. **Configurar breakpoints:**
-   - Abrir `api/infra/main.py` o `api/application/inventario.py`
+   - Abrir `api/main.py` o `api/application/inventario.py`
    - Hacer clic en el margen izquierdo para establecer breakpoints
    - Los breakpoints se marcan con puntos rojos
 
@@ -163,7 +163,7 @@ npm run build
      - **Name**: `FastAPI Debug`
      - **Script path**: Dejar vacío
      - **Module name**: `uvicorn`
-     - **Parameters**: `api.infra.main:app --reload --host 0.0.0.0 --port 8000`
+     - **Parameters**: `api.main:app --reload --host 0.0.0.0 --port 8000`
      - **Working directory**: Seleccionar la carpeta del proyecto
      - **Python interpreter**: Seleccionar el intérprete correcto
 
@@ -204,10 +204,10 @@ FASTAPI_ENV=development
 ```
 
 **Puntos de debug recomendados:**
-- `api/infra/main.py`: Línea 30 (función `simular`)
+- `api/main.py`: Línea 30 (función `simular`)
 - `api/application/inventario.py`: Línea 95 (inicio de `simular_politica`)
 - `api/application/inventario.py`: Línea 120 (procesamiento de eventos)
-- `api/config.py`: Línea 25 (carga de configuración)
+- `api/infra/repository/yml_config_repository.py`: Línea 25 (carga de configuración)
 
 ## 📁 Estructura del Proyecto
 
@@ -215,19 +215,34 @@ FASTAPI_ENV=development
 simulacion-inventario/
 ├── api/                    # Backend - API y lógica de simulación
 │   ├── domain/            # Capa de dominio - entidades y lógica de negocio
-│   │   ├── __init__.py    # Paquete Domain
-│   │   ├── config.py      # Interfaz Config (contrato de configuración)
-│   │   └── evento.py      # Clase Evento para simulación discreta
+│   │   ├── dto/           # Data Transfer Objects
+│   │   │   ├── __init__.py
+│   │   │   ├── simulacion_request.py  # DTO para requests de simulación
+│   │   │   └── politica_abastecimiento.py  # DTO para políticas
+│   │   ├── models/        # Modelos de dominio
+│   │   │   ├── __init__.py
+│   │   │   └── evento.py  # Clase Evento para simulación discreta
+│   │   ├── repository/    # Interfaces de repositorio
+│   │   │   ├── __init__.py
+│   │   │   └── config.py  # Interfaz Config (contrato de configuración)
+│   │   └── __init__.py    # Paquete Domain
 │   ├── application/       # Capa de aplicación - casos de uso
 │   │   ├── __init__.py    # Paquete Application
 │   │   └── inventario.py  # Lógica de simulación de inventario (desacoplada)
 │   ├── infra/             # Capa de infraestructura - interfaces externas
-│   │   ├── __init__.py    # Paquete Infrastructure
-│   │   ├── main.py        # API FastAPI y endpoints
-│   │   └── yml_source_config.py # Implementación YAML de Config
-│   ├── config.py          # Punto de entrada de configuración (compatibilidad)
-│   ├── config.yml         # Archivo de configuración centralizado
-│   └── requirements.txt   # Dependencias del proyecto
+│   │   ├── controllers/   # Controladores de la API
+│   │   │   ├── __init__.py
+│   │   │   ├── health_controller.py  # Endpoint de health check
+│   │   │   └── simulacion_controller.py  # Endpoint de simulación
+│   │   ├── repository/    # Implementaciones de repositorios
+│   │   │   ├── __init__.py
+│   │   │   ├── yml_config_repository.py  # Implementación YAML de Config
+│   │   │   └── config.yml  # Archivo de configuración centralizado
+│   │   └── __init__.py    # Paquete Infrastructure
+│   ├── dependency_injection.py  # Configuración de inyección de dependencias
+│   ├── main.py            # Punto de entrada de la aplicación FastAPI
+│   ├── requirements.txt   # Dependencias del proyecto
+│   └── Dockerfile         # Configuración Docker para el backend
 ├── frontend/              # Frontend - Interfaz web interactiva
 │   ├── src/               # Código fuente del frontend
 │   │   ├── index.html     # Página principal
@@ -240,8 +255,9 @@ simulacion-inventario/
 │   │       ├── charts.js  # Gráficos y visualizaciones
 │   │       └── app.js     # Lógica principal de la aplicación
 │   ├── package.json       # Dependencias y scripts del frontend
-│   ├── start.sh           # Script de inicio alternativo
-│   └── README.md          # Documentación del frontend
+│   ├── Dockerfile         # Configuración Docker para containerizar el frontend
+│   └── nginx.conf         # Configuración de Nginx
+├── docker-compose.yml     # Orquestación de servicios Docker
 ├── .gitignore             # Archivos ignorados por Git
 ├── README.md              # Documentación del proyecto
 └── esquema.md             # Diagrama de flujo de la simulación
@@ -251,21 +267,33 @@ simulacion-inventario/
 
 #### Backend (`api/`)
 
+##### Punto de Entrada (`api/`)
+- **`main.py`**: Punto de entrada de la aplicación FastAPI. Configura la aplicación, middleware CORS, inyección de dependencias y registra los controladores.
+- **`dependency_injection.py`**: Configuración de inyección de dependencias. Define la función `get_config()` que proporciona la implementación concreta de la interfaz Config.
+
 ##### Capa de Infraestructura (`api/infra/`)
-- **`main.py`**: API REST con FastAPI. Define endpoints, modelos de datos y maneja las peticiones HTTP. Es el único punto de entrada para ejecutar simulaciones.
-- **`yml_source_config.py`**: Implementación concreta de la interfaz Config que carga configuración desde archivos YAML.
+- **`controllers/`**: Controladores de la API REST
+  - **`health_controller.py`**: Endpoint de health check (`/health`)
+  - **`simulacion_controller.py`**: Endpoint principal de simulación (`/simular`) con inyección de dependencias
+- **`repository/`**: Implementaciones concretas de repositorios
+  - **`yml_config_repository.py`**: Implementación concreta de la interfaz Config que carga configuración desde archivos YAML
+  - **`config.yml`**: Archivo de configuración centralizado con todos los parámetros de la simulación
 
 ##### Capa de Aplicación (`api/application/`)
 - **`inventario.py`**: Contiene toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe todos los parámetros como argumentos de función.
 
 ##### Capa de Dominio (`api/domain/`)
-- **`config.py`**: Interfaz abstracta Config que define el contrato para las fuentes de configuración sin dependencias de infraestructura.
-- **`evento.py`**: Define la clase `Evento` utilizada para la simulación discreta de eventos (demandas y llegadas de pedidos).
+- **`dto/`**: Data Transfer Objects para comunicación entre capas
+  - **`simulacion_request.py`**: DTO para recibir requests de simulación
+  - **`politica_abastecimiento.py`**: DTO para representar políticas de abastecimiento
+- **`models/`**: Modelos de dominio
+  - **`evento.py`**: Define la clase `Evento` utilizada para la simulación discreta de eventos
+- **`repository/`**: Interfaces de repositorio
+  - **`config.py`**: Interfaz abstracta Config que define el contrato para las fuentes de configuración
 
 ##### Configuración (`api/`)
-- **`config.py`**: Punto de entrada de configuración que mantiene compatibilidad con el código existente. Importa y expone la implementación YmlSourceConfig.
-- **`config.yml`**: Archivo de configuración centralizado con todos los parámetros de la simulación (costos, tiempos, políticas, etc.).
-- **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto.
+- **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto
+- **`Dockerfile`**: Configuración Docker para containerizar el backend
 
 #### Frontend (`frontend/`)
 
@@ -280,8 +308,11 @@ simulacion-inventario/
 
 ##### Configuración (`frontend/`)
 - **`package.json`**: Dependencias y scripts de Node.js
-- **`start.sh`**: Script alternativo para ejecutar sin npm
-- **`README.md`**: Documentación específica del frontend
+- **`Dockerfile`**: Configuración Docker para containerizar el frontend
+- **`nginx.conf`**: Configuración de Nginx para servir el frontend
+
+#### Orquestación
+- **`docker-compose.yml`**: Orquestación de servicios Docker (backend + frontend + nginx)
 
 #### Documentación
 - **`esquema.md`**: Diagrama de flujo que explica el funcionamiento de la simulación.
@@ -290,6 +321,17 @@ simulacion-inventario/
 
 ### Endpoints Disponibles
 
+#### GET `/health`
+Endpoint de health check para verificar que la API está funcionando.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "API de Simulación de Inventario funcionando correctamente"
+}
+```
+
 #### POST `/simular`
 Endpoint principal que ejecuta la simulación de políticas de inventario.
 
@@ -297,36 +339,36 @@ Endpoint principal que ejecuta la simulación de políticas de inventario.
 
 ```python
 class SimulacionRequest(BaseModel):
-    inventario_inicial: int = Field(default=720)
-    plazo_entrega_min: int = Field(default=1)
-    plazo_entrega_max: int = Field(default=5)
-    dias_simulacion: int = Field(default=365)
-    anios_simulacion: int = Field(default=5)
-    costo_almacenar: float = Field(default=150.0)
-    costo_faltante: float = Field(default=380.0)
-    costo_pedido_pequenio: float = Field(default=40.0)
-    costo_pedido_grande: float = Field(default=30.0)
-    precio_venta: float = Field(default=250.0)
-    politicas_abastecimiento: List[PoliticaAbastecimiento]
-    demanda: int = Field(default=200)
+    inventario_inicial: Optional[int] = None
+    plazo_entrega_min: Optional[int] = None
+    plazo_entrega_max: Optional[int] = None
+    dias_simulacion: Optional[int] = None
+    anios_simulacion: Optional[int] = None
+    costo_almacenar: Optional[float] = None
+    costo_faltante: Optional[float] = None
+    costo_pedido_pequenio: Optional[float] = None
+    costo_pedido_grande: Optional[float] = None
+    precio_venta: Optional[float] = None
+    politicas_abastecimiento: Optional[List[PoliticaAbastecimiento]] = None
+    demanda: Optional[int] = None
 ```
 
 #### Parámetros del Modelo
 
 | Parámetro | Tipo | Default | Descripción |
 |-----------|------|---------|-------------|
-| `inventario_inicial` | int | 720 | Inventario inicial en unidades |
-| `plazo_entrega_min` | int | 1 | Plazo mínimo de entrega en días |
-| `plazo_entrega_max` | int | 5 | Plazo máximo de entrega en días |
-| `dias_simulacion` | int | 365 | Días por año de simulación |
-| `anios_simulacion` | int | 5 | Número de años a simular |
-| `costo_almacenar` | float | 150.0 | Costo por unidad por día de almacenamiento |
-| `costo_faltante` | float | 380.0 | Costo por unidad de faltante |
-| `costo_pedido_pequenio` | float | 40.0 | Costo por unidad para pedidos < 300 |
-| `costo_pedido_grande` | float | 30.0 | Costo por unidad para pedidos ≥ 300 |
-| `precio_venta` | float | 250.0 | Precio de venta por unidad |
+| `inventario_inicial` | int | Config | Inventario inicial en unidades |
+| `plazo_entrega_min` | int | Config | Plazo mínimo de entrega en días |
+| `plazo_entrega_max` | int | Config | Plazo máximo de entrega en días |
+| `dias_simulacion` | int | Config | Días por año de simulación |
+| `anios_simulacion` | int | Config | Número de años a simular |
+| `costo_almacenar` | float | Config | Costo por unidad por día de almacenamiento |
+| `costo_faltante` | float | Config | Costo por unidad de faltante |
+| `costo_pedido_pequenio` | float | Config | Costo por unidad para pedidos < 300 |
+| `costo_pedido_grande` | float | Config | Costo por unidad para pedidos ≥ 300 |
+| `precio_venta` | float | Config | Precio de venta por unidad |
 | `politicas_abastecimiento` | List | Config | Lista de políticas (r, Q) a simular |
-| `demanda` | int | 200 | Demanda media diaria (distribución Poisson) |
+| `demanda` | int | Config | Demanda media diaria (distribución Poisson) |
 
 #### Modelo PoliticaAbastecimiento
 
@@ -437,7 +479,7 @@ La simulación utiliza el **método de eventos discretos** para modelar el siste
 ### Flujo de Ejecución
 
 1. **Punto de Entrada**: La API recibe una petición POST en `/simular` con los parámetros de simulación
-2. **Procesamiento**: El controlador en `main.py` itera sobre las políticas y llama a `simular_politica` para cada una
+2. **Procesamiento**: El controlador en `simulacion_controller.py` itera sobre las políticas y llama a `simular_politica` para cada una
 3. **Simulación**: Cada política se simula de forma independiente y desacoplada
 4. **Resultados**: Se retornan los resultados de todas las políticas simuladas
 

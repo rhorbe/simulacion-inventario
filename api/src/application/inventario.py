@@ -40,21 +40,6 @@ def generar_tiempo_entrega(plazo_min, plazo_max):
     """
     return random.randint(plazo_min, plazo_max)
 
-
-def imprimir_resultados(resultado):
-    costo_faltante = resultado["costo_faltante"]
-    costo_almacenar = resultado["costo_alm"]
-    costo_pedidos = resultado["costo_pedidos"]
-    costo_total = costo_faltante + costo_almacenar + costo_pedidos
-
-    print(f"\nPolítica (r={resultado['r']}, Q={resultado['Q']}):")
-    print(f"  Ingresos:        ${resultado['ingresos']:.2f}")
-    print(f"  Costo almacén:   ${resultado['costo_alm']:.2f}")
-    print(f"  Costo faltantes: ${resultado['costo_faltante']:.2f}")
-    print(f"  Costo pedidos:   ${resultado['costo_pedidos']:.2f}")
-    print(f"  Costo total:     ${costo_total:.2f}")
-    print(f"  Ganancia neta:   ${resultado['ganancia']:.2f}")
-
 def existen_eventos_pendientes(lista_eventos, dia):
     """
     Verifica si hay eventos pendientes para el día actual.
@@ -160,14 +145,3 @@ def calcular_resultados_diarios(demanda, inventario):
     faltante = calcular_faltante(demanda, inventario)
 
     return ventas, faltante
-
-
-def procesar_llegada_pedidos(dia, inventario, pedidos_pendientes):
-    pedidos_que_llegan = [p for p in pedidos_pendientes if p[0] == dia]
-
-    for llegada, cantidad in pedidos_que_llegan:
-        inventario += cantidad
-
-    pedidos_pendientes = [p for p in pedidos_pendientes if p[0] > dia]
-
-    return inventario, pedidos_pendientes

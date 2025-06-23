@@ -4,10 +4,10 @@ from api.src.domain.value_objects.base_value_object import BaseValueObject
 from typing import Optional
 
 @dataclass(frozen=True)
-class Precio(BaseValueObject):
+class CostoFaltante(BaseValueObject):
     """
-    Value Object que representa un precio en el dominio.
-    Un precio no puede ser negativo.
+    Value Object que representa el costo de faltante en el dominio.
+    Un costo de faltante no puede ser negativo.
     """
     valor: float
     
@@ -29,32 +29,34 @@ class Precio(BaseValueObject):
             return value
         
         if cls._default_config is None:
-            raise ValueError("No se proporcionó valor para precio y no hay configuración por defecto")
+            raise ValueError("No se proporcionó valor para costo_faltante y no hay configuración por defecto")
         
-        # Como Precio es una clase base, no tiene una clave específica
-        # Las clases que heredan de Precio deben implementar su propia lógica
-        raise ValueError("No se proporcionó valor para precio y no hay configuración por defecto")
+        costos = cls._default_config.get_costos()
+        if 'faltante' in costos:
+            return costos['faltante']
+        
+        raise ValueError("No se proporcionó valor para costo_faltante y no hay configuración por defecto")
     
     @classmethod
-    def from_float(cls, valor: Optional[float] = None) -> 'Precio':
+    def from_float(cls, valor: Optional[float] = None) -> 'CostoFaltante':
         """
-        Naming constructor que valida y crea un Precio.
+        Naming constructor que valida y crea un CostoFaltante.
         
         Args:
-            valor: El valor del precio (puede ser None para usar valor por defecto)
+            valor: El valor del costo de faltante (puede ser None para usar valor por defecto)
             
         Returns:
-            Precio: Una instancia válida de Precio
+            CostoFaltante: Una instancia válida de CostoFaltante
             
         Raises:
-            DomainError: Si el precio es negativo
+            DomainError: Si el costo es negativo
             ValueError: Si el valor es None y no hay configuración por defecto
         """
         # Obtener valor o usar valor por defecto
         actual_valor = cls._get_value_or_default(valor)
         
         if actual_valor < 0:
-            raise DomainError("El precio no puede ser negativo")
+            raise DomainError("El costo de faltante no puede ser negativo")
         
         return cls(actual_valor)
     

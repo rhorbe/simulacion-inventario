@@ -344,13 +344,55 @@ El sistema implementa una capa de Value Objects siguiendo principios de Domain-D
 - **Validaciones de Dominio**: Cada Value Object valida sus reglas de negocio en el naming constructor
 - **Naming Constructors**: Métodos `from_*` que actúan como constructores con nombres descriptivos
 - **Excepciones de Dominio**: Errores de validación arrojan `DomainError` con mensajes claros
+- **Configuración por Defecto**: Todos los Value Objects heredan de `BaseValueObject` que permite configurar valores por defecto
+
+#### Clase Base: BaseValueObject
+
+```python
+class BaseValueObject(ABC):
+    _default_config: Optional[Config] = None
+    
+    @classmethod
+    def with_config(cls, config: Config) -> Type[T]:
+        """Configura los valores por defecto para este tipo de Value Object."""
+        cls._default_config = config
+        return cls
+    
+    @classmethod
+    def get_default_config(cls) -> Optional[Config]:
+        """Obtiene la configuración por defecto establecida."""
+        return cls._default_config
+    
+    @classmethod
+    def clear_default_config(cls) -> None:
+        """Limpia la configuración por defecto establecida."""
+        cls._default_config = None
+```
+
+#### Uso de Configuración por Defecto
+
+Los Value Objects pueden configurarse con valores por defecto usando el método `with_config`:
+
+```python
+# Configurar Value Objects con configuración por defecto
+PoliticaInventarioConConfig = PoliticaInventario.with_config(config)
+ConfiguracionSimulacionConConfig = ConfiguracionSimulacion.with_config(config)
+
+# Usar los Value Objects configurados
+politica = PoliticaInventarioConConfig.from_valores(20, 100)
+configuracion = ConfiguracionSimulacionConConfig.from_parametros(...)
+
+# Limpiar configuración cuando ya no se necesite
+PoliticaInventarioConConfig.clear_default_config()
+ConfiguracionSimulacionConConfig.clear_default_config()
+```
 
 #### Value Objects Implementados
 
 ##### `Cantidad`
 ```python
 @dataclass(frozen=True)
-class Cantidad:
+class Cantidad(BaseValueObject):
     valor: int
     
     @classmethod
@@ -366,7 +408,7 @@ class Cantidad:
 ##### `Precio`
 ```python
 @dataclass(frozen=True)
-class Precio:
+class Precio(BaseValueObject):
     valor: float
     
     @classmethod
@@ -382,7 +424,7 @@ class Precio:
 ##### `PlazoDeEntrega`
 ```python
 @dataclass(frozen=True)
-class PlazoDeEntrega:
+class PlazoDeEntrega(BaseValueObject):
     plazo_minimo: int
     plazo_maximo: int
     
@@ -405,7 +447,7 @@ class PlazoDeEntrega:
 ##### `CostoPedido`
 ```python
 @dataclass(frozen=True)
-class CostoPedido:
+class CostoPedido(BaseValueObject):
     costo_pedido_pequeno: float
     costo_pedido_grande: float
     
@@ -434,7 +476,7 @@ class CostoPedido:
 ##### `PoliticaInventario`
 ```python
 @dataclass(frozen=True)
-class PoliticaInventario:
+class PoliticaInventario(BaseValueObject):
     punto_reorden: Cantidad
     cantidad_pedido: Cantidad
     
@@ -451,7 +493,7 @@ class PoliticaInventario:
 ##### `ConfiguracionSimulacion`
 ```python
 @dataclass(frozen=True)
-class ConfiguracionSimulacion:
+class ConfiguracionSimulacion(BaseValueObject):
     inventario_inicial: Cantidad
     precio_venta: Precio
     costo_almacenar: Precio
@@ -496,6 +538,7 @@ class DomainError(Exception):
 4. **Testing Mejorado**: Tests unitarios específicos para cada Value Object
 5. **Documentación Viva**: Los Value Objects documentan las reglas de negocio en el código
 6. **Prevención de Errores**: Validaciones tempranas evitan errores en tiempo de ejecución
+7. **Configuración por Defecto**: Los Value Objects pueden configurarse con valores por defecto desde la configuración
 
 ### Ejecución de Tests
 
@@ -506,6 +549,7 @@ python -m pytest api/tests/ -v
 # Ejecutar tests específicos
 python -m pytest api/tests/test_cantidad.py -v
 python -m pytest api/tests/test_precio.py -v
+python -m pytest api/tests/test_base_value_object.py -v
 ```
 
 ## 🔌 API Documentation

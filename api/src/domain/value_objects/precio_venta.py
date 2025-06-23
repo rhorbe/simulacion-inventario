@@ -1,15 +1,14 @@
 from dataclasses import dataclass
-from api.src.domain.exceptions.domain_error import DomainError
+from api.src.domain.value_objects.precio import Precio
 from api.src.domain.value_objects.base_value_object import BaseValueObject
 from typing import Optional
 
 @dataclass(frozen=True)
-class Precio(BaseValueObject):
+class PrecioVenta(Precio):
     """
-    Value Object que representa un precio en el dominio.
-    Un precio no puede ser negativo.
+    Value Object que representa el precio de venta en el dominio.
+    Hereda de Precio y encapsula la lógica para obtener el valor por defecto.
     """
-    valor: float
     
     @classmethod
     def _get_value_or_default(cls, value: Optional[float]) -> float:
@@ -29,38 +28,31 @@ class Precio(BaseValueObject):
             return value
         
         if cls._default_config is None:
-            raise ValueError("No se proporcionó valor para precio y no hay configuración por defecto")
+            raise ValueError("No se proporcionó valor para precio_venta y no hay configuración por defecto")
         
-        # Como Precio es una clase base, no tiene una clave específica
-        # Las clases que heredan de Precio deben implementar su propia lógica
-        raise ValueError("No se proporcionó valor para precio y no hay configuración por defecto")
+        precios = cls._default_config.get_precios()
+        if 'venta' in precios:
+            return precios['venta']
+        
+        raise ValueError("No se proporcionó valor para precio_venta y no hay configuración por defecto")
     
     @classmethod
-    def from_float(cls, valor: Optional[float] = None) -> 'Precio':
+    def from_float(cls, valor: Optional[float] = None) -> 'PrecioVenta':
         """
-        Naming constructor que valida y crea un Precio.
+        Naming constructor que valida y crea un PrecioVenta.
         
         Args:
-            valor: El valor del precio (puede ser None para usar valor por defecto)
+            valor: El valor del precio de venta (puede ser None para usar valor por defecto)
             
         Returns:
-            Precio: Una instancia válida de Precio
+            PrecioVenta: Una instancia válida de PrecioVenta
             
         Raises:
             DomainError: Si el precio es negativo
             ValueError: Si el valor es None y no hay configuración por defecto
         """
-        # Obtener valor o usar valor por defecto
         actual_valor = cls._get_value_or_default(valor)
-        
         if actual_valor < 0:
+            from api.src.domain.exceptions.domain_error import DomainError
             raise DomainError("El precio no puede ser negativo")
-        
-        return cls(actual_valor)
-    
-    def __float__(self) -> float:
-        """Convierte el ValueObject a float."""
-        return float(self.valor)
-    
-    def __str__(self) -> str:
-        return f"${self.valor:.2f}" 
+        return cls(actual_valor) 

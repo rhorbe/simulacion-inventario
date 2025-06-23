@@ -28,8 +28,13 @@ async def simular_inventario(
     dias_simulacion = request.dias_simulacion
     total_dias_simulacion = dias_simulacion * anios_simulacion
     
-    # Crear configuración de simulación usando ValueObjects
-    configuracion = ConfiguracionSimulacion.from_parametros(
+    # Configurar Value Objects con la configuración por defecto
+    PoliticaInventarioConConfig = PoliticaInventario.with_config(config)
+    ConfiguracionSimulacionConConfig = ConfiguracionSimulacion.with_config(config)
+    
+    # Crear configuración de simulación usando ValueObjects con valores por defecto
+    # Los parámetros None se reemplazarán con valores de la configuración
+    configuracion = ConfiguracionSimulacionConConfig.from_parametros(
         inventario_inicial=request.inventario_inicial,
         precio_venta=request.precio_venta,
         costo_almacenar=request.costo_almacenar,
@@ -43,8 +48,9 @@ async def simular_inventario(
     
     resultados = []
     for politica_dto in politicas:
-        # Crear política de inventario usando ValueObjects
-        politica = PoliticaInventario.from_valores(
+        # Crear política de inventario usando ValueObjects con valores por defecto
+        # Los parámetros None se reemplazarán con valores de la configuración
+        politica = PoliticaInventarioConConfig.from_valores(
             punto_reorden=politica_dto.punto_reorden,
             cantidad_pedido=politica_dto.cantidad_pedido
         )
@@ -54,5 +60,9 @@ async def simular_inventario(
             dias_simulacion=total_dias_simulacion,
             configuracion=configuracion
         ))
+
+    # Limpiar configuraciones por defecto
+    PoliticaInventarioConConfig.clear_default_config()
+    ConfiguracionSimulacionConConfig.clear_default_config()
 
     return {'resultados': resultados}

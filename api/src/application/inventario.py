@@ -2,20 +2,6 @@ from api.src.domain.models.evento import Evento
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
 from api.src.domain.object_mothers import DemandaMother, TiempoEntregaMother
 
-def existen_eventos_pendientes(lista_eventos, dia):
-    """
-    Verifica si hay eventos pendientes para el día actual.
-
-    Args:
-        lista_eventos (list): Lista de eventos pendientes.
-        dia (int): Día actual.
-
-    Returns:
-        bool: True si hay eventos pendientes, False en caso contrario.
-    """
-    return any(evento.get_dia() >= dia for evento in lista_eventos)
-
-
 def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configuracion: ConfiguracionSimulacion):
     """
     Simula la política de inventario dada por (r, Q) durante dias_simulacion días.
@@ -55,7 +41,9 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
 
         if tipo_evento == "demanda":
             d = evento_actual.get_cantidad()
-            ventas, faltante = calcular_resultados_diarios(d, inventario)
+            ventas = min(d, inventario)
+            faltante = max(0, d - inventario)
+
             inventario -= ventas
             ingresos += ventas * precio_venta
             costo_total_faltante += faltante * costo_por_faltante
@@ -71,7 +59,7 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
 
         costo_almacenamiento += inventario * costo_almacenar
 
-        if not existen_eventos_pendientes(lista_eventos, dia + 1):
+        if not any(evento.get_dia() >= (dia + 1) for evento in lista_eventos):
             nueva_demanda = Evento("demanda", dia + 1, DemandaMother.random(seed=42).value(demanda_media))
             lista_eventos.append(nueva_demanda)
 
@@ -90,16 +78,3 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
         "ganancia": ganancia,
     }
 
-
-def calcular_faltante(demanda, inventario):
-    return max(0, demanda - inventario)
-
-
-def calcular_ventas(demanda, inventario):
-    return min(demanda, inventario)
-
-
-def calcular_resultados_diarios(demanda, inventario):
-    ventas = calcular_ventas(demanda, inventario)
-    faltante = calcular_faltante(demanda, inventario)
-    return ventas, faltante

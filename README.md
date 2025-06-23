@@ -220,6 +220,7 @@ simulacion-inventario/
 │   │   │   ├── dto/           # Data Transfer Objects
 │   │   │   ├── models/        # Modelos de dominio
 │   │   │   ├── value_objects/ # Value Objects del dominio
+│   │   │   ├── object_mothers/ # Object Mothers para generación de valores aleatorios
 │   │   │   ├── exceptions/    # Excepciones de dominio
 │   │   │   ├── repository/    # Interfaces de repositorio
 │   │   │   └── __init__.py
@@ -238,7 +239,8 @@ simulacion-inventario/
 │   │   ├── test_plazo_de_entrega.py
 │   │   ├── test_costo_pedido.py
 │   │   ├── test_politica_inventario.py
-│   │   └── test_configuracion_simulacion.py
+│   │   ├── test_configuracion_simulacion.py
+│   │   └── test_object_mothers.py
 │   ├── requirements.txt   # Dependencias del proyecto
 │   └── Dockerfile         # Configuración Docker para el backend
 ├── frontend/              # Frontend - Interfaz web interactiva
@@ -293,6 +295,10 @@ simulacion-inventario/
   - **`costo_pedido.py`**: Value Object que encapsula costos de pedido pequeño y grande
   - **`politica_inventario.py`**: Value Object para políticas de inventario (r, Q)
   - **`configuracion_simulacion.py`**: Value Object que encapsula toda la configuración
+- **`object_mothers/`**: Object Mothers para generación de valores aleatorios
+  - **`base_object_mother.py`**: Clase base abstracta para todos los Object Mothers
+  - **`demanda_mother.py`**: Object Mother para generar demandas aleatorias (distribución Poisson)
+  - **`tiempo_entrega_mother.py`**: Object Mother para generar tiempos de entrega aleatorios (distribución uniforme)
 - **`exceptions/`**: Excepciones de dominio
   - **`domain_error.py`**: Excepción base para errores de dominio con mensajes claros
 - **`repository/`**: Interfaces de repositorio
@@ -305,6 +311,7 @@ simulacion-inventario/
 - **`test_costo_pedido.py`**: Tests para el Value Object CostoPedido
 - **`test_politica_inventario.py`**: Tests para el Value Object PoliticaInventario
 - **`test_configuracion_simulacion.py`**: Tests para el Value Object ConfiguracionSimulacion
+- **`test_object_mothers.py`**: Tests para los Object Mothers (DemandaMother y TiempoEntregaMother)
 
 ##### Configuración (`api/`)
 - **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto
@@ -516,6 +523,129 @@ class ConfiguracionSimulacion(BaseValueObject):
 - Valida cada parámetro usando los Value Objects correspondientes
 - Proporciona métodos getter para acceder a los valores primitivos
 
+### Object Mothers
+
+El sistema implementa el patrón **Object Mother** para encapsular la lógica de generación de valores aleatorios utilizados en la simulación. Este patrón permite separar la responsabilidad de generar datos de prueba o valores aleatorios del resto de la lógica de negocio.
+
+#### Características de los Object Mothers
+
+- **Herencia de Clase Base**: Todos los Object Mothers heredan de `BaseObjectMother`
+- **Método de Clase `random(seed)`**: Cada Object Mother tiene un método de clase que devuelve una instancia configurada con la semilla especificada
+- **Método de instancia `value(...)`**: Permite generar el valor aleatorio de forma fluida, sin necesidad de instanciar variables auxiliares
+- **Generadores Independientes**: Cada Object Mother mantiene su propio generador de números aleatorios
+- **Configurabilidad**: Permite cambiar semillas para reproducibilidad de resultados
+- **Testabilidad**: Fácil testing de la lógica de generación de valores
+
+#### Clase Base: BaseObjectMother
+
+```python
+class BaseObjectMother(ABC):
+    """
+    Clase base abstracta para todos los Object Mother del dominio.
+    """
+    @classmethod
+    @abstractmethod
+    def random(cls, seed):
+        """
+        Devuelve una instancia del Object Mother con la semilla indicada.
+        """
+        pass
+```
+
+#### Object Mothers Implementados
+
+##### `DemandaMother`
+```python
+class DemandaMother(BaseObjectMother):
+    def __init__(self, seed: Optional[int] = 42):
+        self.generador_aleatorio = np.random.default_rng(seed=seed)
+    
+    def value(self, demanda_media: int) -> int:
+        """Genera una demanda aleatoria usando distribución de Poisson."""
+        return self.generador_aleatorio.poisson(demanda_media)
+    
+    @classmethod
+    def random(cls, seed=42):
+        return cls(seed=seed)
+```
+
+**Características:**
+- Genera demandas aleatorias usando distribución de Poisson
+- Utiliza `numpy.random.default_rng` para generación de números aleatorios
+- Parámetro: `demanda_media` (media de la distribución Poisson)
+
+##### `TiempoEntregaMother`
+```python
+class TiempoEntregaMother(BaseObjectMother):
+    def __init__(self, seed: Optional[int] = 42):
+        self.generador_aleatorio = random.Random(seed)
+    
+    def value(self, plazo_min: int, plazo_max: int) -> int:
+        """Genera un tiempo de entrega aleatorio usando distribución uniforme."""
+        return self.generador_aleatorio.randint(plazo_min, plazo_max)
+    
+    @classmethod
+    def random(cls, seed=42):
+        return cls(seed=seed)
+```
+
+**Características:**
+- Genera tiempos de entrega aleatorios usando distribución uniforme
+- Utiliza `random.Random` para generación de números aleatorios
+- Parámetros: `plazo_min` y `plazo_max` (rango de la distribución uniforme)
+
+#### Uso de Object Mothers
+
+```python
+# Llamada fluida sin necesidad de instanciar variables auxiliares
+demanda = DemandaMother.random(seed=42).value(demanda_media=10)
+tiempo = TiempoEntregaMother.random(seed=42).value(plazo_min=1, plazo_max=5)
+
+# También se puede reutilizar la instancia si se desea:
+demanda_gen = DemandaMother.random(seed=42)
+demanda1 = demanda_gen.value(10)
+demanda2 = demanda_gen.value(10)
+```
+
+#### Integración en la Simulación
+
+Los Object Mothers se integran en la lógica de simulación de la siguiente manera:
+
+```python
+# En simular_politica()
+lista_eventos = [Evento("demanda", 0, DemandaMother.random(seed=42).value(demanda_media))]
+
+# Al procesar eventos de demanda
+if not existen_eventos_pendientes(lista_eventos, dia + 1):
+    nueva_demanda = Evento("demanda", dia + 1, DemandaMother.random(seed=42).value(demanda_media))
+    lista_eventos.append(nueva_demanda)
+
+# Al generar pedidos
+nuevoPedido = Evento("llegada_pedido", 
+                     dia + TiempoEntregaMother.random(seed=42).value(plazo_entrega_min, plazo_entrega_max), 
+                     Q)
+```
+
+#### Beneficios del Patrón Object Mother
+
+1. **Separación de Responsabilidades**: La lógica de generación de valores aleatorios está encapsulada en clases específicas
+2. **Reutilización**: Los Object Mothers pueden ser usados en otros contextos (tests, diferentes simulaciones)
+3. **Testabilidad**: Cada Object Mother puede ser testeado independientemente
+4. **Configurabilidad**: Fácil cambio de semillas para reproducibilidad de resultados
+5. **Extensibilidad**: Fácil agregar nuevos tipos de generadores heredando de `BaseObjectMother`
+6. **Mantenibilidad**: Cambios en la lógica de generación solo afectan a los Object Mothers correspondientes
+
+#### Testing de Object Mothers
+
+```bash
+# Ejecutar tests de Object Mothers
+python -m pytest tests/test_object_mothers.py -v
+
+# Tests específicos
+python -m pytest tests/test_object_mothers.py::TestDemandaMother -v
+python -m pytest tests/test_object_mothers.py::TestTiempoEntregaMother -v
+```
+
 ### Excepciones de Dominio
 
 ```python
@@ -550,6 +680,7 @@ python -m pytest api/tests/ -v
 python -m pytest api/tests/test_cantidad.py -v
 python -m pytest api/tests/test_precio.py -v
 python -m pytest api/tests/test_base_value_object.py -v
+python -m pytest api/tests/test_object_mothers.py -v
 ```
 
 ## 🔌 API Documentation

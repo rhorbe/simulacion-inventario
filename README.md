@@ -6,6 +6,7 @@ Sistema completo de simulación de políticas de inventario basado en el modelo 
 
 - [Get Started](#get-started)
 - [Estructura del Proyecto](#estructura-del-proyecto)
+- [Arquitectura de Dominio](#arquitectura-de-dominio)
 - [API Documentation](#api-documentation)
 - [Frontend](#frontend)
 - [Lógica de Simulación](#lógica-de-simulación)
@@ -168,7 +169,7 @@ npm run build
      - **Python interpreter**: Seleccionar el intérprete correcto
 
 3. **Configurar breakpoints:**
-   - Abrir cualquier archivo `.py` en las carpetas `api/domain/`, `api/application/` o `api/infra/`
+   - Abrir cualquier archivo `.py` en las carpetas `api/src/domain/`, `api/src/application/` o `api/src/infra/`
    - Hacer clic en el margen izquierdo para establecer breakpoints
    - Los breakpoints aparecen como círculos rojos
 
@@ -214,33 +215,30 @@ FASTAPI_ENV=development
 ```
 simulacion-inventario/
 ├── api/                    # Backend - API y lógica de simulación
-│   ├── domain/            # Capa de dominio - entidades y lógica de negocio
-│   │   ├── dto/           # Data Transfer Objects
-│   │   │   ├── __init__.py
-│   │   │   ├── simulacion_request.py  # DTO para requests de simulación
-│   │   │   └── politica_abastecimiento.py  # DTO para políticas
-│   │   ├── models/        # Modelos de dominio
-│   │   │   ├── __init__.py
-│   │   │   └── evento.py  # Clase Evento para simulación discreta
-│   │   ├── repository/    # Interfaces de repositorio
-│   │   │   ├── __init__.py
-│   │   │   └── config.py  # Interfaz Config (contrato de configuración)
-│   │   └── __init__.py    # Paquete Domain
-│   ├── application/       # Capa de aplicación - casos de uso
-│   │   ├── __init__.py    # Paquete Application
-│   │   └── inventario.py  # Lógica de simulación de inventario (desacoplada)
-│   ├── infra/             # Capa de infraestructura - interfaces externas
-│   │   ├── controllers/   # Controladores de la API
-│   │   │   ├── __init__.py
-│   │   │   ├── health_controller.py  # Endpoint de health check
-│   │   │   └── simulacion_controller.py  # Endpoint de simulación
-│   │   ├── repository/    # Implementaciones de repositorios
-│   │   │   ├── __init__.py
-│   │   │   ├── yml_config_repository.py  # Implementación YAML de Config
-│   │   │   └── config.yml  # Archivo de configuración centralizado
-│   │   └── __init__.py    # Paquete Infrastructure
-│   ├── dependency_injection.py  # Configuración de inyección de dependencias
-│   ├── main.py            # Punto de entrada de la aplicación FastAPI
+│   ├── src/               # Código fuente del backend
+│   │   ├── domain/        # Capa de dominio - entidades y lógica de negocio
+│   │   │   ├── dto/           # Data Transfer Objects
+│   │   │   ├── models/        # Modelos de dominio
+│   │   │   ├── value_objects/ # Value Objects del dominio
+│   │   │   ├── exceptions/    # Excepciones de dominio
+│   │   │   ├── repository/    # Interfaces de repositorio
+│   │   │   └── __init__.py
+│   │   ├── application/   # Capa de aplicación - casos de uso
+│   │   ├── infra/         # Capa de infraestructura - interfaces externas
+│   │   │   ├── controllers/   # Controladores de la API
+│   │   │   ├── repository/    # Implementaciones de repositorios
+│   │   │   └── __init__.py
+│   │   ├── dependency_injection.py  # Configuración de inyección de dependencias
+│   │   ├── main.py            # Punto de entrada de la aplicación FastAPI
+│   │   └── __init__.py
+│   ├── tests/             # Tests unitarios
+│   │   ├── __init__.py
+│   │   ├── test_cantidad.py
+│   │   ├── test_precio.py
+│   │   ├── test_plazo_de_entrega.py
+│   │   ├── test_costo_pedido.py
+│   │   ├── test_politica_inventario.py
+│   │   └── test_configuracion_simulacion.py
 │   ├── requirements.txt   # Dependencias del proyecto
 │   └── Dockerfile         # Configuración Docker para el backend
 ├── frontend/              # Frontend - Interfaz web interactiva
@@ -280,16 +278,33 @@ simulacion-inventario/
   - **`config.yml`**: Archivo de configuración centralizado con todos los parámetros de la simulación
 
 ##### Capa de Aplicación (`api/application/`)
-- **`inventario.py`**: Contiene toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe todos los parámetros como argumentos de función.
+- **`inventario.py`**: Contiene toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe ValueObjects como parámetros.
 
-##### Capa de Dominio (`api/domain/`)
+##### Capa de Dominio (`api/src/domain/`)
 - **`dto/`**: Data Transfer Objects para comunicación entre capas
   - **`simulacion_request.py`**: DTO para recibir requests de simulación
   - **`politica_abastecimiento.py`**: DTO para representar políticas de abastecimiento
 - **`models/`**: Modelos de dominio
   - **`evento.py`**: Define la clase `Evento` utilizada para la simulación discreta de eventos
+- **`value_objects/`**: Value Objects del dominio con validaciones de negocio
+  - **`cantidad.py`**: Value Object para cantidades con validación de no negatividad
+  - **`precio.py`**: Value Object para precios con validación de no negatividad
+  - **`plazo_de_entrega.py`**: Value Object que encapsula plazo mínimo y máximo con validaciones
+  - **`costo_pedido.py`**: Value Object que encapsula costos de pedido pequeño y grande
+  - **`politica_inventario.py`**: Value Object para políticas de inventario (r, Q)
+  - **`configuracion_simulacion.py`**: Value Object que encapsula toda la configuración
+- **`exceptions/`**: Excepciones de dominio
+  - **`domain_error.py`**: Excepción base para errores de dominio con mensajes claros
 - **`repository/`**: Interfaces de repositorio
   - **`config.py`**: Interfaz abstracta Config que define el contrato para las fuentes de configuración
+
+##### Tests (`api/tests/`)
+- **`test_cantidad.py`**: Tests para el Value Object Cantidad
+- **`test_precio.py`**: Tests para el Value Object Precio
+- **`test_plazo_de_entrega.py`**: Tests para el Value Object PlazoDeEntrega
+- **`test_costo_pedido.py`**: Tests para el Value Object CostoPedido
+- **`test_politica_inventario.py`**: Tests para el Value Object PoliticaInventario
+- **`test_configuracion_simulacion.py`**: Tests para el Value Object ConfiguracionSimulacion
 
 ##### Configuración (`api/`)
 - **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto
@@ -316,6 +331,182 @@ simulacion-inventario/
 
 #### Documentación
 - **`esquema.md`**: Diagrama de flujo que explica el funcionamiento de la simulación.
+
+## 🏗️ Arquitectura de Dominio
+
+### Value Objects
+
+El sistema implementa una capa de Value Objects siguiendo principios de Domain-Driven Design (DDD) para encapsular la lógica de negocio y validaciones de dominio.
+
+#### Características de los Value Objects
+
+- **Inmutabilidad**: Todos los Value Objects son inmutables (frozen dataclasses)
+- **Validaciones de Dominio**: Cada Value Object valida sus reglas de negocio en el naming constructor
+- **Naming Constructors**: Métodos `from_*` que actúan como constructores con nombres descriptivos
+- **Excepciones de Dominio**: Errores de validación arrojan `DomainError` con mensajes claros
+
+#### Value Objects Implementados
+
+##### `Cantidad`
+```python
+@dataclass(frozen=True)
+class Cantidad:
+    valor: int
+    
+    @classmethod
+    def from_int(cls, valor: int) -> 'Cantidad':
+        if valor < 0:
+            raise DomainError("La cantidad no puede ser negativa")
+        return cls(valor)
+```
+
+**Validaciones:**
+- No puede ser negativa
+
+##### `Precio`
+```python
+@dataclass(frozen=True)
+class Precio:
+    valor: float
+    
+    @classmethod
+    def from_float(cls, valor: float) -> 'Precio':
+        if valor < 0:
+            raise DomainError("El precio no puede ser negativo")
+        return cls(valor)
+```
+
+**Validaciones:**
+- No puede ser negativo
+
+##### `PlazoDeEntrega`
+```python
+@dataclass(frozen=True)
+class PlazoDeEntrega:
+    plazo_minimo: int
+    plazo_maximo: int
+    
+    @classmethod
+    def from_plazos(cls, plazo_minimo: int, plazo_maximo: int) -> 'PlazoDeEntrega':
+        if plazo_minimo < 0:
+            raise DomainError("El plazo mínimo de entrega no puede ser negativo")
+        if plazo_maximo < 0:
+            raise DomainError("El plazo máximo de entrega no puede ser negativo")
+        if plazo_maximo < plazo_minimo:
+            raise DomainError("El plazo máximo de entrega no puede ser menor al plazo mínimo")
+        return cls(plazo_minimo, plazo_maximo)
+```
+
+**Validaciones:**
+- Plazo mínimo no puede ser negativo
+- Plazo máximo no puede ser negativo
+- Plazo máximo no puede ser menor al plazo mínimo
+
+##### `CostoPedido`
+```python
+@dataclass(frozen=True)
+class CostoPedido:
+    costo_pedido_pequeno: float
+    costo_pedido_grande: float
+    
+    @classmethod
+    def from_costos(cls, costo_pedido_pequeno: float, costo_pedido_grande: float) -> 'CostoPedido':
+        if costo_pedido_pequeno < 0:
+            raise DomainError("El costo de pedido pequeño no puede ser negativo")
+        if costo_pedido_grande < 0:
+            raise DomainError("El costo de pedido grande no puede ser negativo")
+        if costo_pedido_pequeno <= costo_pedido_grande:
+            raise DomainError("El costo de pedido pequeño debe ser mayor al costo de pedido grande")
+        return cls(costo_pedido_pequeno, costo_pedido_grande)
+    
+    def calcular_costo_unitario(self, cantidad: int) -> float:
+        return self.costo_pedido_pequeno if cantidad < 300 else self.costo_pedido_grande
+```
+
+**Validaciones:**
+- Costo de pedido pequeño no puede ser negativo
+- Costo de pedido grande no puede ser negativo
+- Costo de pedido pequeño debe ser mayor al costo de pedido grande
+
+**Comportamiento:**
+- Calcula automáticamente el costo unitario según el tamaño del pedido (< 300: pequeño, ≥ 300: grande)
+
+##### `PoliticaInventario`
+```python
+@dataclass(frozen=True)
+class PoliticaInventario:
+    punto_reorden: Cantidad
+    cantidad_pedido: Cantidad
+    
+    @classmethod
+    def from_valores(cls, punto_reorden: int, cantidad_pedido: int) -> 'PoliticaInventario':
+        punto_reorden_vo = Cantidad.from_int(punto_reorden)
+        cantidad_pedido_vo = Cantidad.from_int(cantidad_pedido)
+        return cls(punto_reorden_vo, cantidad_pedido_vo)
+```
+
+**Validaciones:**
+- Ambos valores deben ser no negativos (validado por `Cantidad`)
+
+##### `ConfiguracionSimulacion`
+```python
+@dataclass(frozen=True)
+class ConfiguracionSimulacion:
+    inventario_inicial: Cantidad
+    precio_venta: Precio
+    costo_almacenar: Precio
+    costo_faltante: Precio
+    costo_pedido: CostoPedido
+    plazo_entrega: PlazoDeEntrega
+    demanda_media: Cantidad
+    
+    @classmethod
+    def from_parametros(cls, inventario_inicial: int, precio_venta: float, ...) -> 'ConfiguracionSimulacion':
+        return cls(
+            inventario_inicial=Cantidad.from_int(inventario_inicial),
+            precio_venta=Precio.from_float(precio_venta),
+            # ... otros parámetros
+        )
+```
+
+**Características:**
+- Encapsula todos los parámetros de configuración
+- Valida cada parámetro usando los Value Objects correspondientes
+- Proporciona métodos getter para acceder a los valores primitivos
+
+### Excepciones de Dominio
+
+```python
+class DomainError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+```
+
+**Características:**
+- Excepción base para todos los errores de dominio
+- Mensajes claros y descriptivos para cada validación fallida
+- Facilita el debugging y la identificación de problemas
+
+### Beneficios de la Refactorización
+
+1. **Validaciones Centralizadas**: Todas las validaciones de negocio están encapsuladas en los Value Objects
+2. **Código Más Limpio**: La capa de aplicación recibe objetos validados en lugar de tipos primitivos
+3. **Mejor Mantenibilidad**: Cambios en las reglas de negocio solo requieren modificar los Value Objects
+4. **Testing Mejorado**: Tests unitarios específicos para cada Value Object
+5. **Documentación Viva**: Los Value Objects documentan las reglas de negocio en el código
+6. **Prevención de Errores**: Validaciones tempranas evitan errores en tiempo de ejecución
+
+### Ejecución de Tests
+
+```bash
+# Ejecutar todos los tests
+python -m pytest api/tests/ -v
+
+# Ejecutar tests específicos
+python -m pytest api/tests/test_cantidad.py -v
+python -m pytest api/tests/test_precio.py -v
+```
 
 ## 🔌 API Documentation
 
@@ -479,27 +670,34 @@ La simulación utiliza el **método de eventos discretos** para modelar el siste
 ### Flujo de Ejecución
 
 1. **Punto de Entrada**: La API recibe una petición POST en `/simular` con los parámetros de simulación
-2. **Procesamiento**: El controlador en `simulacion_controller.py` itera sobre las políticas y llama a `simular_politica` para cada una
-3. **Simulación**: Cada política se simula de forma independiente y desacoplada
-4. **Resultados**: Se retornan los resultados de todas las políticas simuladas
+2. **Validación de Dominio**: El controlador crea ValueObjects que validan las reglas de negocio
+3. **Procesamiento**: El controlador itera sobre las políticas y llama a `simular_politica` para cada una
+4. **Simulación**: Cada política se simula de forma independiente usando ValueObjects validados
+5. **Resultados**: Se retornan los resultados de todas las políticas simuladas
 
-### Método Principal: `simular_politica(r, Q, dias_simulacion, **kwargs)`
+### Método Principal: `simular_politica(politica, dias_simulacion, configuracion)`
 
 #### Parámetros de Entrada
-- `r` (int): Punto de reorden (nivel de inventario que dispara un nuevo pedido)
-- `Q` (int): Cantidad a pedir (tamaño del lote de reposición)
+- `politica` (PoliticaInventario): Política de inventario (r, Q) validada
 - `dias_simulacion` (int): Período total de simulación en días
-- `**kwargs`: Parámetros adicionales de configuración (todos los valores de costos, tiempos, etc.)
+- `configuracion` (ConfiguracionSimulacion): Configuración completa validada
 
 #### Flujo de Ejecución
 
-1. **Inicialización:**
+1. **Inicialización con ValueObjects:**
    ```python
-   # Recibir parámetros desde kwargs (sin dependencia de configuración)
-   inventario = kwargs.get("inventario_inicial")
-   precio_venta = kwargs.get("precio_venta")
-   costo_almacenar = kwargs.get("costo_almacenar")
-   # ... otros parámetros
+   # Obtener valores validados desde los ValueObjects
+   inventario = configuracion.get_inventario_inicial()
+   precio_venta = configuracion.get_precio_venta()
+   costo_almacenar = configuracion.get_costo_almacenar()
+   costo_por_faltante = configuracion.get_costo_faltante()
+   demanda_media = configuracion.get_demanda_media()
+   plazo_entrega_min = configuracion.get_plazo_entrega_min()
+   plazo_entrega_max = configuracion.get_plazo_entrega_max()
+   
+   # Obtener valores de la política
+   r = politica.get_punto_reorden()
+   Q = politica.get_cantidad_pedido()
    
    # Crear primer evento de demanda
    lista_eventos = [Evento("demanda", 0, generar_demanda(demanda_media))]
@@ -518,11 +716,11 @@ La simulación utiliza el **método de eventos discretos** para modelar el siste
    - **Evento "demanda"**: Calcular ventas y faltantes, actualizar inventario
    - **Evento "llegada_pedido"**: Recibir pedido y actualizar inventario
 
-4. **Lógica de Reposición:**
+4. **Lógica de Reposición con ValueObjects:**
    ```python
    if inventario < r:  # Si inventario cae bajo punto de reorden
-       nuevoPedido = Evento("llegada_pedido", dia + generar_tiempo_entrega(), Q)
-       costo_pedidos += Q * costo_unitario_pedido(Q, costo_pedido_pequeno, costo_pedido_grande)
+       nuevoPedido = Evento("llegada_pedido", dia + generar_tiempo_entrega(plazo_entrega_min, plazo_entrega_max), Q)
+       costo_pedidos += Q * configuracion.calcular_costo_unitario_pedido(Q)
    ```
 
 5. **Cálculo de Costos Diarios:**
@@ -541,7 +739,6 @@ La simulación utiliza el **método de eventos discretos** para modelar el siste
 
 - **`generar_demanda(demanda_media)`**: Genera demanda aleatoria con distribución Poisson
 - **`generar_tiempo_entrega(plazo_min, plazo_max)`**: Genera plazo de entrega uniforme
-- **`costo_unitario_pedido(q, costo_pequeno, costo_grande)`**: Calcula costo según tamaño del pedido
 - **`calcular_resultados_diarios(demanda, inventario)`**: Calcula ventas y faltantes
 - **`existen_eventos_pendientes(lista_eventos, dia)`**: Verifica eventos futuros
 
@@ -573,7 +770,16 @@ return {
 - **Plazos de Entrega Variables**: Distribución uniforme entre mínimo y máximo
 - **Costos Dinámicos**: Diferentes costos según tamaño de pedido
 - **Múltiples Políticas**: Comparación simultánea de diferentes estrategias
-- **Desacoplamiento**: El módulo de simulación no depende de configuración externa
+- **Validaciones de Dominio**: Todos los parámetros son validados por ValueObjects antes de la simulación
+- **Desacoplamiento**: El módulo de simulación recibe objetos validados en lugar de tipos primitivos
+
+### Beneficios de la Refactorización en la Simulación
+
+1. **Validaciones Tempranas**: Los ValueObjects validan los parámetros antes de iniciar la simulación
+2. **Código Más Limpio**: La función `simular_politica` recibe objetos con significado semántico
+3. **Prevención de Errores**: Imposible pasar parámetros inválidos a la simulación
+4. **Mejor Testing**: Los ValueObjects pueden ser testeados independientemente
+5. **Documentación Viva**: Las reglas de negocio están codificadas en los ValueObjects
 
 ## 📊 Diagrama de Flujo
 

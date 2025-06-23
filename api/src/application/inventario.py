@@ -2,7 +2,8 @@ import random
 
 import numpy as np
 
-from api.domain.models.evento import Evento
+from api.src.domain.models.evento import Evento
+from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
 
 # Generador de números aleatorios de numpy
 generador_aleatorio = np.random.default_rng(seed=42)
@@ -40,21 +41,6 @@ def generar_tiempo_entrega(plazo_min, plazo_max):
     return random.randint(plazo_min, plazo_max)
 
 
-def costo_unitario_pedido(q, costo_pedido_pequeno, costo_pedido_grande):
-    """
-    Calcula el costo unitario de un pedido según su cantidad.
-
-    Args:
-        q (int): Cantidad del pedido.
-        costo_pedido_pequeno (float): Costo por unidad para pedidos pequeños
-        costo_pedido_grande (float): Costo por unidad para pedidos grandes
-
-    Returns:
-        float: Costo unitario del pedido.
-    """
-    return costo_pedido_pequeno if q < 300 else costo_pedido_grande
-
-
 def imprimir_resultados(resultado):
     costo_faltante = resultado["costo_faltante"]
     costo_almacenar = resultado["costo_alm"]
@@ -83,28 +69,28 @@ def existen_eventos_pendientes(lista_eventos, dia):
     return any(evento.get_dia() >= dia for evento in lista_eventos)
 
 
-def simular_politica(r, Q, dias_simulacion, **kwargs):
+def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configuracion: ConfiguracionSimulacion):
     """
     Simula la política de inventario dada por (r, Q) durante dias_simulacion días.
 
     Args:
-        r (int): Nivel de reposición.
-        Q (int): Tamaño del lote de reposición.
+        politica (PoliticaInventario): Política de inventario (r, Q)
         dias_simulacion (int): Días totales de simulación
-        **kwargs: Parámetros adicionales de configuración
+        configuracion (ConfiguracionSimulacion): Configuración de la simulación
 
     Returns:
         dict: Diccionario con los resultados de la simulación.
     """
-    inventario = kwargs.get("inventario_inicial")
-    precio_venta = kwargs.get("precio_venta")
-    costo_almacenar = kwargs.get("costo_almacenar")
-    costo_por_faltante = kwargs.get("costo_faltante")
-    costo_pedido_pequeno = kwargs.get("costo_pedido_pequeno")
-    costo_pedido_grande = kwargs.get("costo_pedido_grande")
-    demanda_media = kwargs.get("demanda")
-    plazo_entrega_min = kwargs.get("plazo_entrega_min")
-    plazo_entrega_max = kwargs.get("plazo_entrega_max")
+    inventario = configuracion.get_inventario_inicial()
+    precio_venta = configuracion.get_precio_venta()
+    costo_almacenar = configuracion.get_costo_almacenar()
+    costo_por_faltante = configuracion.get_costo_faltante()
+    demanda_media = configuracion.get_demanda_media()
+    plazo_entrega_min = configuracion.get_plazo_entrega_min()
+    plazo_entrega_max = configuracion.get_plazo_entrega_max()
+    
+    r = politica.get_punto_reorden()
+    Q = politica.get_cantidad_pedido()
     
     lista_eventos = [Evento("demanda", 0, generar_demanda(demanda_media))]
 
@@ -132,7 +118,7 @@ def simular_politica(r, Q, dias_simulacion, **kwargs):
 
         if inventario < r:
             nuevoPedido = Evento("llegada_pedido", dia + generar_tiempo_entrega(plazo_entrega_min, plazo_entrega_max), Q)
-            costo_pedidos += Q * costo_unitario_pedido(Q, costo_pedido_pequeno, costo_pedido_grande)
+            costo_pedidos += Q * configuracion.calcular_costo_unitario_pedido(Q)
             lista_eventos.append(nuevoPedido)
             lista_eventos.sort(key=lambda x: x.get_dia())
 

@@ -1,5 +1,5 @@
-from api.domain.repository.config import Config
-from api.infra.repository.yml_config_repository import YmlConfigRepository
+from api.src.domain.repository.config import Config
+from api.src.infra.repository.yml_config_repository import YmlConfigRepository
 
 
 def get_config() -> Config:

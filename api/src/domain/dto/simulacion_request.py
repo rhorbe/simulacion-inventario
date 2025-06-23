@@ -1,6 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel
-from api.domain.dto.politica_abastecimiento import PoliticaAbastecimiento
+from api.src.domain.dto.politica_abastecimiento import PoliticaAbastecimiento
 
 class SimulacionRequest(BaseModel):
     inventario_inicial: Optional[int] = None

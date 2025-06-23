@@ -1,7 +1,7 @@
 import yaml
 import os
 from typing import Dict, Any, List
-from api.domain.repository.config import Config
+from api.src.domain.repository.config import Config
 
 class YmlConfigRepository(Config):
     """

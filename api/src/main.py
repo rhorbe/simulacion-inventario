@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.infra.controllers import health_controller, simulacion_controller
+from api.src.infra.controllers import health_controller
+from api.src.infra.controllers import simulacion_controller
 
 app = FastAPI(title="API de Simulación de Inventario", version="1.0.0")
 

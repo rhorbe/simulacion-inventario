@@ -14,13 +14,9 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
     Returns:
         dict: Diccionario con los resultados de la simulación.
     """
-    inventario = configuracion.get_inventario_inicial()
-    lista_eventos = [EventoDemanda(0, DemandaMother.random(seed=42).value(configuracion.get_demanda_media()))]
+    fel = FEL()
+    fel.agregar_evento(EventoDemanda(0, DemandaMother.random(seed=42).value(configuracion.get_demanda_media())))
 
-    costo_almacenamiento = 0
-    costo_total_faltante = 0
-    costo_pedidos = 0
-    ingresos = 0
 
     resultados = ResultadosPolitica(
         r=politica.get_punto_reorden(),
@@ -55,21 +51,17 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
                 politica.get_cantidad_pedido())
             resultados.agregar_costo_pedido(costo_pedido)
 
-            lista_eventos.append(nuevo_pedido)
+            fel.agregar_evento(nuevo_pedido)
 
         resultados.agregar_costo_almacenamiento(resultados.obtener_inventario() * configuracion.get_costo_almacenar())
 
-        costo_almacenamiento += inventario * configuracion.get_costo_almacenar()
-
-        if not any(evento.get_dia() >= (dia + 1) for evento in lista_eventos):
+        if not fel.hay_eventos_futuros_en_dia(dia + 1):
             nueva_demanda = EventoDemanda(
                 dia + 1,
                 DemandaMother.random(seed=42).value(configuracion.get_demanda_media())
             )
 
-            lista_eventos.append(nueva_demanda)
-
-        lista_eventos.sort(key=lambda x: x.get_dia())
+            fel.agregar_evento(nueva_demanda)
 
     return resultados.to_dict()
 

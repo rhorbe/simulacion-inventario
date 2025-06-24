@@ -287,7 +287,7 @@ simulacion-inventario/
   - **`simulacion_request.py`**: DTO para recibir requests de simulación
   - **`politica_abastecimiento.py`**: DTO para representar políticas de abastecimiento
 - **`models/`**: Modelos de dominio
-  - **`evento.py`**: Define la clase `Evento` utilizada para la simulación discreta de eventos
+  - **`evento.py`**: Define la jerarquía de eventos para la simulación discreta de eventos
 - **`value_objects/`**: Value Objects del dominio con validaciones de negocio
   - **`cantidad.py`**: Value Object para cantidades con validación de no negatividad
   - **`precio.py`**: Value Object para precios con validación de no negatividad
@@ -312,6 +312,8 @@ simulacion-inventario/
 - **`test_politica_inventario.py`**: Tests para el Value Object PoliticaInventario
 - **`test_configuracion_simulacion.py`**: Tests para el Value Object ConfiguracionSimulacion
 - **`test_object_mothers.py`**: Tests para los Object Mothers (DemandaMother y TiempoEntregaMother)
+- **`test_value_objects_with_defaults.py`**: Tests para Value Objects con valores por defecto
+- **`test_eventos.py`**: Tests para la jerarquía de eventos (EventoBase, EventoDemanda, EventoLlegadaPedido)
 
 ##### Configuración (`api/`)
 - **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto
@@ -523,6 +525,149 @@ class ConfiguracionSimulacion(BaseValueObject):
 - Valida cada parámetro usando los Value Objects correspondientes
 - Proporciona métodos getter para acceder a los valores primitivos
 
+### Jerarquía de Eventos
+
+El sistema implementa una jerarquía de clases para representar los diferentes tipos de eventos que ocurren durante la simulación discreta de eventos. Esta jerarquía permite una mejor tipificación y separación de responsabilidades.
+
+#### Características de la Jerarquía de Eventos
+
+- **Clase Base Abstracta**: `EventoBase` define la interfaz común para todos los eventos
+- **Tipificación Específica**: Cada tipo de evento tiene su propia clase que hereda de `EventoBase`
+- **Compatibilidad**: Se mantiene la clase `Evento` original para compatibilidad con código existente
+- **Polimorfismo**: Todos los eventos pueden ser tratados de manera uniforme a través de la interfaz común
+
+#### Clase Base: EventoBase
+
+```python
+class EventoBase(ABC):
+    """
+    Clase base abstracta para todos los eventos de la simulación.
+    Define la interfaz común que deben implementar todos los eventos.
+    """
+    
+    @abstractmethod
+    def get_dia(self) -> int:
+        """Retorna el día en que ocurre el evento."""
+        pass
+    
+    @abstractmethod
+    def get_tipo(self) -> str:
+        """Retorna el tipo del evento."""
+        pass
+    
+    @abstractmethod
+    def __str__(self) -> str:
+        """Representación en string del evento."""
+        pass
+```
+
+#### Eventos Específicos Implementados
+
+##### `EventoDemanda`
+```python
+@dataclass
+class EventoDemanda(EventoBase):
+    """
+    Evento que representa una demanda de productos.
+    """
+    dia: int
+    cantidad: int
+    
+    def get_tipo(self) -> str:
+        return "demanda"
+```
+
+**Características:**
+- Representa una demanda de productos en un día específico
+- Contiene la cantidad demandada
+- Tipo fijo: "demanda"
+
+##### `EventoLlegadaPedido`
+```python
+@dataclass
+class EventoLlegadaPedido(EventoBase):
+    """
+    Evento que representa la llegada de un pedido.
+    """
+    dia: int
+    cantidad: int
+    
+    def get_tipo(self) -> str:
+        return "llegada_pedido"
+```
+
+**Características:**
+- Representa la llegada de un pedido en un día específico
+- Contiene la cantidad que llega
+- Tipo fijo: "llegada_pedido"
+
+#### Clase de Compatibilidad: Evento
+
+```python
+@dataclass
+class Evento(EventoBase):
+    """
+    Clase de compatibilidad que mantiene la interfaz original.
+    Se recomienda usar las clases específicas EventoDemanda y EventoLlegadaPedido.
+    """
+    tipo: str
+    dia: int
+    cantidad: int = 0
+```
+
+**Características:**
+- Mantiene la interfaz original para compatibilidad
+- Permite especificar el tipo de evento dinámicamente
+- Se recomienda migrar al uso de clases específicas
+
+#### Uso de la Jerarquía de Eventos
+
+```python
+# Crear eventos específicos (recomendado)
+evento_demanda = EventoDemanda(dia=5, cantidad=10)
+evento_llegada = EventoLlegadaPedido(dia=10, cantidad=50)
+
+# Los eventos pueden ser tratados de manera uniforme
+eventos = [evento_demanda, evento_llegada]
+for evento in eventos:
+    print(f"Evento {evento.get_tipo()} en día {evento.get_dia()}")
+
+# Ordenar eventos por día
+eventos_ordenados = sorted(eventos, key=lambda x: x.get_dia())
+```
+
+#### Integración en la Simulación
+
+Los eventos específicos se integran en la lógica de simulación:
+
+```python
+# Crear evento de demanda inicial
+lista_eventos = [EventoDemanda(0, DemandaMother.random(seed=42).value(demanda_media))]
+
+# Procesar eventos según su tipo
+if evento_actual.get_tipo() == "demanda":
+    # Procesar demanda
+    pass
+elif evento_actual.get_tipo() == "llegada_pedido":
+    # Procesar llegada de pedido
+    pass
+
+# Crear nuevo evento de llegada de pedido
+nuevo_pedido = EventoLlegadaPedido(
+    dia + TiempoEntregaMother.random(seed=42).value(plazo_min, plazo_max),
+    cantidad_pedido
+)
+```
+
+#### Beneficios de la Jerarquía de Eventos
+
+1. **Tipificación Fuerte**: Cada tipo de evento tiene su propia clase con tipos específicos
+2. **Mejor Legibilidad**: El código es más claro al usar `EventoDemanda` en lugar de `Evento(tipo="demanda", ...)`
+3. **Extensibilidad**: Fácil agregar nuevos tipos de eventos heredando de `EventoBase`
+4. **Validación de Tipos**: El compilador puede detectar errores de tipos en tiempo de compilación
+5. **Polimorfismo**: Todos los eventos pueden ser tratados uniformemente a través de la interfaz común
+6. **Compatibilidad**: Se mantiene la clase original para no romper código existente
+
 ### Object Mothers
 
 El sistema implementa el patrón **Object Mother** para encapsular la lógica de generación de valores aleatorios utilizados en la simulación. Este patrón permite separar la responsabilidad de generar datos de prueba o valores aleatorios del resto de la lógica de negocio.
@@ -681,6 +826,8 @@ python -m pytest api/tests/test_cantidad.py -v
 python -m pytest api/tests/test_precio.py -v
 python -m pytest api/tests/test_base_value_object.py -v
 python -m pytest api/tests/test_object_mothers.py -v
+python -m pytest api/tests/test_value_objects.py -v
+python -m pytest api/tests/test_eventos.py -v
 ```
 
 ## 🔌 API Documentation

@@ -22,33 +22,42 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
     costo_pedidos = 0
     ingresos = 0
 
-    while lista_eventos:
-        evento_actual = lista_eventos.pop(0)
+    resultados = ResultadosPolitica(
+        r=politica.get_punto_reorden(),
+        Q=politica.get_cantidad_pedido(),
+        inventario=configuracion.get_inventario_inicial()
+    )
+
+
+    while fel.hay_eventos():
+        evento_actual = fel.obtener_siguiente_evento()
         dia = evento_actual.get_dia()
 
         if dia >= dias_simulacion: break
 
         if isinstance(evento_actual, EventoDemanda):
             d = evento_actual.get_cantidad()
-            ventas = min(d, inventario)
-            faltante = max(0, d - inventario)
+            inventario_actual = resultados.obtener_inventario()
+            ventas = min(d, inventario_actual)
+            faltante = max(0, d - inventario_actual)
 
-            inventario -= ventas
-            ingresos += ventas * configuracion.get_precio_venta()
-            costo_total_faltante += faltante * configuracion.get_costo_faltante()
+            resultados.actualizar_inventario(-ventas)
+            resultados.agregar_ingreso(ventas * configuracion.get_precio_venta())
+            resultados.agregar_costo_faltante(faltante * configuracion.get_costo_faltante())
         elif isinstance(evento_actual, EventoLlegadaPedido):
             cantidad = evento_actual.get_cantidad()
-            inventario += cantidad
+            resultados.actualizar_inventario(cantidad)
 
-        nuevo_pedido = revision(configuracion, dia, inventario, politica)
+        nuevo_pedido = revision(configuracion, dia, resultados.obtener_inventario(), politica)
 
         if nuevo_pedido is not None:
             costo_pedidos += politica.get_cantidad_pedido() * configuracion.calcular_costo_unitario_pedido(
                 politica.get_cantidad_pedido())
+            resultados.agregar_costo_pedido(costo_pedido)
 
             lista_eventos.append(nuevo_pedido)
 
-        lista_eventos.sort(key=lambda x: x.get_dia())
+        resultados.agregar_costo_almacenamiento(resultados.obtener_inventario() * configuracion.get_costo_almacenar())
 
         costo_almacenamiento += inventario * configuracion.get_costo_almacenar()
 
@@ -62,19 +71,7 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
 
         lista_eventos.sort(key=lambda x: x.get_dia())
 
-
-    costo_total = costo_almacenamiento + costo_total_faltante + costo_pedidos
-    ganancia = ingresos - costo_total
-
-    return {
-        "r": politica.get_punto_reorden(),
-        "Q": politica.get_cantidad_pedido(),
-        "ingresos": ingresos,
-        "costo_alm": costo_almacenamiento,
-        "costo_faltante": costo_total_faltante,
-        "costo_pedidos": costo_pedidos,
-        "ganancia": ganancia,
-    }
+    return resultados.to_dict()
 
 
 def revision(configuracion, dia, inventario, politica):

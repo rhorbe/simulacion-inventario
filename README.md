@@ -288,6 +288,8 @@ simulacion-inventario/
   - **`politica_abastecimiento.py`**: DTO para representar políticas de abastecimiento
 - **`models/`**: Modelos de dominio
   - **`evento.py`**: Define la jerarquía de eventos para la simulación discreta de eventos
+  - **`resultados.py`**: Define la clase ResultadosPolitica para encapsular los resultados de la simulación
+  - **`fel.py`**: Define la clase FEL (Future Event List) para gestionar eventos futuros en la simulación
 - **`value_objects/`**: Value Objects del dominio con validaciones de negocio
   - **`cantidad.py`**: Value Object para cantidades con validación de no negatividad
   - **`precio.py`**: Value Object para precios con validación de no negatividad
@@ -314,6 +316,8 @@ simulacion-inventario/
 - **`test_object_mothers.py`**: Tests para los Object Mothers (DemandaMother y TiempoEntregaMother)
 - **`test_value_objects_with_defaults.py`**: Tests para Value Objects con valores por defecto
 - **`test_eventos.py`**: Tests para la jerarquía de eventos (EventoBase, EventoDemanda, EventoLlegadaPedido)
+- **`test_resultados.py`**: Tests para la clase ResultadosPolitica
+- **`test_fel.py`**: Tests para la clase FEL (Future Event List)
 
 ##### Configuración (`api/`)
 - **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto
@@ -653,7 +657,7 @@ elif evento_actual.get_tipo() == "llegada_pedido":
     pass
 
 # Crear nuevo evento de llegada de pedido
-nuevo_pedido = EventoLlegadaPedido(
+nuevoPedido = EventoLlegadaPedido(
     dia + TiempoEntregaMother.random(seed=42).value(plazo_min, plazo_max),
     cantidad_pedido
 )
@@ -667,6 +671,239 @@ nuevo_pedido = EventoLlegadaPedido(
 4. **Validación de Tipos**: El compilador puede detectar errores de tipos en tiempo de compilación
 5. **Polimorfismo**: Todos los eventos pueden ser tratados uniformemente a través de la interfaz común
 6. **Compatibilidad**: Se mantiene la clase original para no romper código existente
+
+### Clase ResultadosPolitica
+
+El sistema implementa una clase `ResultadosPolitica` para encapsular y gestionar todos los resultados acumulados durante la simulación de inventario para una política específica. Esta clase proporciona una interfaz limpia para manejar costos e ingresos junto con los parámetros de la política.
+
+#### Características de la Clase ResultadosPolitica
+
+- **Encapsulación**: Agrupa todas las variables de resultados en un solo objeto
+- **Parámetros de Política**: Incluye los atributos `r` (punto de reorden) y `Q` (cantidad de pedido)
+- **Métodos de Acumulación**: Proporciona métodos específicos para agregar cada tipo de costo o ingreso
+- **Cálculo Automático**: Calcula automáticamente la ganancia total
+- **Conversión a Diccionario**: Convierte los resultados al formato esperado por la API
+
+#### Implementación de la Clase
+
+```python
+@dataclass
+class ResultadosPolitica:
+    """
+    Clase que encapsula los resultados de la simulación de inventario para una política específica.
+    Contiene todos los costos e ingresos acumulados durante la simulación, junto con los parámetros de la política.
+    """
+    r: int
+    Q: int
+    costo_almacenamiento: float = 0.0
+    costo_total_faltante: float = 0.0
+    costo_pedidos: float = 0.0
+    ingresos: float = 0.0
+    
+    def agregar_costo_almacenamiento(self, costo: float) -> None:
+        """Agrega un costo de almacenamiento al total acumulado."""
+        self.costo_almacenamiento += costo
+    
+    def agregar_costo_faltante(self, costo: float) -> None:
+        """Agrega un costo por faltante al total acumulado."""
+        self.costo_total_faltante += costo
+    
+    def agregar_costo_pedido(self, costo: float) -> None:
+        """Agrega un costo de pedido al total acumulado."""
+        self.costo_pedidos += costo
+    
+    def agregar_ingreso(self, ingreso: float) -> None:
+        """Agrega un ingreso al total acumulado."""
+        self.ingresos += ingreso
+    
+    def calcular_ganancia(self) -> float:
+        """Calcula la ganancia total (ingresos - costos totales)."""
+        costo_total = self.costo_almacenamiento + self.costo_total_faltante + self.costo_pedidos
+        return self.ingresos - costo_total
+    
+    def to_dict(self) -> dict:
+        """Convierte los resultados a un diccionario con el formato esperado por la API."""
+        return {
+            "r": self.r,
+            "Q": self.Q,
+            "ingresos": self.ingresos,
+            "costo_alm": self.costo_almacenamiento,
+            "costo_faltante": self.costo_total_faltante,
+            "costo_pedidos": self.costo_pedidos,
+            "ganancia": self.calcular_ganancia(),
+        }
+```
+
+#### Uso de la Clase ResultadosPolitica
+
+```python
+# Crear objeto de resultados con parámetros de política
+resultados = ResultadosPolitica(r=10, Q=50)
+
+# Acumular costos e ingresos durante la simulación
+resultados.agregar_ingreso(ventas * precio_venta)
+resultados.agregar_costo_faltante(faltante * costo_faltante)
+resultados.agregar_costo_pedido(costo_pedido)
+resultados.agregar_costo_almacenamiento(inventario * costo_almacenar)
+
+# Obtener resultados finales
+dict_resultado = resultados.to_dict()
+```
+
+#### Integración en la Simulación
+
+La clase `ResultadosPolitica` se integra en la función principal de simulación:
+
+```python
+def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configuracion: ConfiguracionSimulacion):
+    # Inicializar resultados con parámetros de la política
+    resultados = ResultadosPolitica(
+        r=politica.get_punto_reorden(),
+        Q=politica.get_cantidad_pedido()
+    )
+    
+    # Durante la simulación, acumular resultados
+    if isinstance(evento_actual, EventoDemanda):
+        ventas = min(d, inventario)
+        faltante = max(0, d - inventario)
+        
+        inventario -= ventas
+        resultados.agregar_ingreso(ventas * configuracion.get_precio_venta())
+        resultados.agregar_costo_faltante(faltante * configuracion.get_costo_faltante())
+    
+    # Al final, retornar resultados
+    return resultados.to_dict()
+```
+
+#### Beneficios de la Clase ResultadosPolitica
+
+1. **Encapsulación**: Agrupa todas las variables relacionadas en un solo objeto
+2. **Parámetros de Política**: Incluye los parámetros `r` y `Q` como parte del objeto
+3. **Métodos Específicos**: Cada tipo de costo/ingreso tiene su propio método de acumulación
+4. **Cálculo Centralizado**: La ganancia se calcula automáticamente
+5. **Mejor Legibilidad**: El código es más claro y expresivo
+6. **Facilidad de Testing**: Es más fácil testear la lógica de acumulación
+7. **Extensibilidad**: Fácil agregar nuevos tipos de costos o ingresos
+8. **Asociación Directa**: Los resultados están directamente asociados con los parámetros de la política
+
+### Clase FEL (Future Event List)
+
+El sistema implementa una clase `FEL` (Future Event List) para encapsular y gestionar la lista de eventos futuros en la simulación discreta de eventos. Esta clase proporciona una interfaz limpia para manejar eventos ordenados cronológicamente.
+
+#### Características de la Clase FEL
+
+- **Ordenamiento Automático**: Los eventos se ordenan automáticamente por tiempo de ocurrencia
+- **Gestión de Eventos**: Proporciona métodos para agregar, obtener y consultar eventos
+- **Encapsulación**: Oculta la lógica de gestión de la lista de eventos
+- **Interfaz Limpia**: Métodos específicos para cada operación de gestión de eventos
+
+#### Implementación de la Clase
+
+```python
+class FEL:
+    """
+    Future Event List (FEL) - Lista de eventos futuros para simulación discreta de eventos.
+    Encapsula la lógica de gestión de eventos ordenados por tiempo de ocurrencia.
+    """
+    
+    def __init__(self):
+        """Inicializa una lista de eventos futuros vacía."""
+        self._eventos: List[EventoBase] = []
+    
+    def agregar_evento(self, evento: EventoBase) -> None:
+        """Agrega un evento a la lista y mantiene el orden cronológico."""
+        self._eventos.append(evento)
+        self._ordenar_eventos()
+    
+    def obtener_siguiente_evento(self) -> Optional[EventoBase]:
+        """Obtiene y remueve el próximo evento de la lista (el de menor tiempo)."""
+        if not self._eventos:
+            return None
+        return self._eventos.pop(0)
+    
+    def hay_eventos(self) -> bool:
+        """Verifica si hay eventos en la lista."""
+        return len(self._eventos) > 0
+    
+    def hay_eventos_futuros_en_dia(self, dia: int) -> bool:
+        """Verifica si hay eventos programados para un día específico o posterior."""
+        return any(evento.get_dia() >= dia for evento in self._eventos)
+    
+    def obtener_proximo_dia_evento(self) -> Optional[int]:
+        """Obtiene el día del próximo evento sin removerlo de la lista."""
+        if not self._eventos:
+            return None
+        return self._eventos[0].get_dia()
+    
+    def _ordenar_eventos(self) -> None:
+        """Ordena los eventos por día de ocurrencia (ascendente)."""
+        self._eventos.sort(key=lambda x: x.get_dia())
+```
+
+#### Uso de la Clase FEL
+
+```python
+# Crear FEL vacía
+fel = FEL()
+
+# Agregar eventos (se ordenan automáticamente)
+fel.agregar_evento(EventoDemanda(dia=3, cantidad=10))
+fel.agregar_evento(EventoDemanda(dia=1, cantidad=5))
+fel.agregar_evento(EventoDemanda(dia=2, cantidad=8))
+
+# Verificar si hay eventos
+if fel.hay_eventos():
+    # Obtener el próximo evento (día 1)
+    evento = fel.obtener_siguiente_evento()
+    
+# Verificar eventos futuros
+if not fel.hay_eventos_futuros_en_dia(dia + 1):
+    # Crear nuevo evento para el día siguiente
+    nuevo_evento = EventoDemanda(dia + 1, cantidad)
+    fel.agregar_evento(nuevo_evento)
+```
+
+#### Integración en la Simulación
+
+La clase `FEL` se integra en la función principal de simulación:
+
+```python
+def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configuracion: ConfiguracionSimulacion):
+    # Inicializar FEL con evento inicial
+    fel = FEL()
+    fel.agregar_evento(EventoDemanda(0, DemandaMother.random(seed=42).value(demanda_media))]
+    
+    # Bucle principal de simulación
+    while fel.hay_eventos():
+        evento_actual = fel.obtener_siguiente_evento()
+        
+        # Procesar evento según su tipo
+        if isinstance(evento_actual, EventoDemanda):
+            # Procesar demanda
+            pass
+        elif isinstance(evento_actual, EventoLlegadaPedido):
+            # Procesar llegada de pedido
+            pass
+        
+        # Crear nuevos eventos si es necesario
+        if nuevo_pedido:
+            fel.agregar_evento(nuevo_pedido)
+        
+        # Verificar si necesitamos crear nueva demanda
+        if not fel.hay_eventos_futuros_en_dia(dia + 1):
+            nueva_demanda = EventoDemanda(dia + 1, cantidad)
+            fel.agregar_evento(nueva_demanda)
+```
+
+#### Beneficios de la Clase FEL
+
+1. **Encapsulación**: Oculta la lógica de gestión de la lista de eventos
+2. **Ordenamiento Automático**: Los eventos se mantienen ordenados cronológicamente
+3. **Interfaz Limpia**: Métodos específicos para cada operación
+4. **Facilidad de Testing**: Es más fácil testear la lógica de gestión de eventos
+5. **Extensibilidad**: Fácil agregar nuevas funcionalidades de gestión de eventos
+6. **Separación de Responsabilidades**: La gestión de eventos está separada de la lógica de simulación
+7. **Reutilización**: La clase puede ser reutilizada en otras simulaciones discretas de eventos
 
 ### Object Mothers
 
@@ -828,6 +1065,8 @@ python -m pytest api/tests/test_base_value_object.py -v
 python -m pytest api/tests/test_object_mothers.py -v
 python -m pytest api/tests/test_value_objects.py -v
 python -m pytest api/tests/test_eventos.py -v
+python -m pytest api/tests/test_resultados.py -v
+python -m pytest api/tests/test_fel.py -v
 ```
 
 ## 🔌 API Documentation

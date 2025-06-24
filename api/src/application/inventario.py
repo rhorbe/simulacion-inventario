@@ -40,18 +40,13 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
             cantidad = evento_actual.get_cantidad()
             inventario += cantidad
 
-        if inventario < politica.get_punto_reorden():
-            nuevoPedido = EventoLlegadaPedido(
-                dia + TiempoEntregaMother.random(seed=42).value(
-                    configuracion.get_plazo_entrega_min(),
-                    configuracion.get_plazo_entrega_max()
-                ),
-                politica.get_cantidad_pedido()
-            )
+        nuevo_pedido = revision(configuracion, dia, inventario, politica)
 
+        if nuevo_pedido is not None:
             costo_pedidos += politica.get_cantidad_pedido() * configuracion.calcular_costo_unitario_pedido(
                 politica.get_cantidad_pedido())
-            lista_eventos.append(nuevoPedido)
+
+            lista_eventos.append(nuevo_pedido)
 
         lista_eventos.sort(key=lambda x: x.get_dia())
 
@@ -67,6 +62,7 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
 
         lista_eventos.sort(key=lambda x: x.get_dia())
 
+
     costo_total = costo_almacenamiento + costo_total_faltante + costo_pedidos
     ganancia = ingresos - costo_total
 
@@ -79,3 +75,17 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
         "costo_pedidos": costo_pedidos,
         "ganancia": ganancia,
     }
+
+
+def revision(configuracion, dia, inventario, politica):
+    if inventario < politica.get_punto_reorden():
+
+        return EventoLlegadaPedido(
+            dia + TiempoEntregaMother.random(seed=42).value(
+                configuracion.get_plazo_entrega_min(),
+                configuracion.get_plazo_entrega_max()
+            ),
+            politica.get_cantidad_pedido()
+        )
+
+    return None

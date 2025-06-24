@@ -56,4 +56,9 @@ class YmlConfigRepository(Config):
     
     def get_politicas_abastecimiento(self) -> List[Dict[str, Any]]:
         """Lista de políticas de abastecimiento."""
-        return self._config.get('politicas_abastecimiento', []) 
+        return self._config.get('politicas_abastecimiento', [])
+    
+    def get_dias_simulacion(self) -> int:
+        """Obtiene los días de simulación desde la configuración."""
+        simulacion = self.get_simulacion()
+        return simulacion.get('dias_simulacion', 365)  # Valor por defecto: 365 días 

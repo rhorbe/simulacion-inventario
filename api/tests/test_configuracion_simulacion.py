@@ -14,7 +14,8 @@ class TestConfiguracionSimulacion:
             costo_pedido_grande=10.0,
             plazo_entrega_min=1,
             plazo_entrega_max=5,
-            demanda_media=20
+            demanda_media=20,
+            dias_simulacion=30
         )
         
         assert config.get_inventario_inicial() == 100
@@ -26,6 +27,7 @@ class TestConfiguracionSimulacion:
         assert config.get_plazo_entrega_min() == 1
         assert config.get_plazo_entrega_max() == 5
         assert config.get_demanda_media() == 20
+        assert config.get_dias_simulacion() == 30
         
         # Probar cálculo de costo unitario
         assert config.calcular_costo_unitario_pedido(100) == 12.0  # Pedido pequeño
@@ -42,5 +44,6 @@ class TestConfiguracionSimulacion:
                 costo_pedido_grande=10.0,
                 plazo_entrega_min=1,
                 plazo_entrega_max=5,
-                demanda_media=20
+                demanda_media=20,
+                dias_simulacion=30
             ) 

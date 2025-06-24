@@ -7,6 +7,7 @@ from api.src.domain.value_objects.plazo_de_entrega import PlazoDeEntrega
 from api.src.domain.value_objects.costo_pedido import CostoPedido
 from api.src.domain.value_objects.costo_almacenar import CostoAlmacenar
 from api.src.domain.value_objects.costo_faltante import CostoFaltante
+from api.src.domain.value_objects.dias_simulacion import DiasSimulacion
 from api.src.domain.value_objects.base_value_object import BaseValueObject
 from api.src.domain.repository.config import Config
 from typing import Optional, Any
@@ -24,6 +25,7 @@ class ConfiguracionSimulacion(BaseValueObject):
     costo_pedido: CostoPedido
     plazo_entrega: PlazoDeEntrega
     demanda_media: DemandaMedia
+    dias_simulacion: DiasSimulacion
     
     @classmethod
     def _get_value_or_default(cls, value: Optional[Any]) -> Any:
@@ -44,7 +46,8 @@ class ConfiguracionSimulacion(BaseValueObject):
         costo_pedido_grande: Optional[float] = None,
         plazo_entrega_min: Optional[int] = None,
         plazo_entrega_max: Optional[int] = None,
-        demanda_media: Optional[int] = None
+        demanda_media: Optional[int] = None,
+        dias_simulacion: Optional[int] = None
     ) -> 'ConfiguracionSimulacion':
         """
         Naming constructor que valida y crea una ConfiguracionSimulacion.
@@ -59,6 +62,7 @@ class ConfiguracionSimulacion(BaseValueObject):
             plazo_entrega_min: Plazo mínimo de entrega en días (puede ser None para usar valor por defecto)
             plazo_entrega_max: Plazo máximo de entrega en días (puede ser None para usar valor por defecto)
             demanda_media: Demanda media diaria (puede ser None para usar valor por defecto)
+            dias_simulacion: Días totales de simulación (puede ser None para usar valor por defecto)
             
         Returns:
             ConfiguracionSimulacion: Una instancia válida de ConfiguracionSimulacion
@@ -74,7 +78,8 @@ class ConfiguracionSimulacion(BaseValueObject):
             costo_faltante=CostoFaltante.from_float(costo_faltante),
             costo_pedido=CostoPedido.from_costos(costo_pedido_pequeno, costo_pedido_grande),
             plazo_entrega=PlazoDeEntrega.from_plazos(plazo_entrega_min, plazo_entrega_max),
-            demanda_media=DemandaMedia.from_int(demanda_media)
+            demanda_media=DemandaMedia.from_int(demanda_media),
+            dias_simulacion=DiasSimulacion.from_int(dias_simulacion)
         )
     
     def get_inventario_inicial(self) -> int:
@@ -113,12 +118,16 @@ class ConfiguracionSimulacion(BaseValueObject):
         """Obtiene la demanda media."""
         return int(self.demanda_media)
     
+    def get_dias_simulacion(self) -> int:
+        """Obtiene los días de simulación."""
+        return self.dias_simulacion.get_dias()
+    
     def calcular_costo_unitario_pedido(self, cantidad: int) -> float:
         """Calcula el costo unitario de un pedido según su cantidad."""
         return self.costo_pedido.calcular_costo_unitario(cantidad)
     
     def __str__(self) -> str:
-        return f"Configuración: Inventario inicial={self.inventario_inicial}, Precio venta={self.precio_venta}, Demanda media={self.demanda_media}"
+        return f"Configuración: Inventario inicial={self.inventario_inicial}, Precio venta={self.precio_venta}, Demanda media={self.demanda_media}, Días simulación={self.dias_simulacion}"
     
     @classmethod
     def with_config(cls, config: 'Config') -> 'ConfiguracionSimulacion':
@@ -142,6 +151,7 @@ class ConfiguracionSimulacion(BaseValueObject):
         CostoFaltante.with_config(config)
         CostoPedido.with_config(config)
         PlazoDeEntrega.with_config(config)
+        DiasSimulacion.with_config(config)
         
         return cls 
 
@@ -159,4 +169,5 @@ class ConfiguracionSimulacion(BaseValueObject):
         CostoAlmacenar.clear_default_config()
         CostoFaltante.clear_default_config()
         CostoPedido.clear_default_config()
-        PlazoDeEntrega.clear_default_config() 
+        PlazoDeEntrega.clear_default_config()
+        DiasSimulacion.clear_default_config() 

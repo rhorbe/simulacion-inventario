@@ -1,14 +1,15 @@
 from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
+from api.src.domain.models.resultados_politica import ResultadosPolitica
+from api.src.domain.models.fel import FEL
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
 from api.src.domain.object_mothers import DemandaMother, TiempoEntregaMother
 
-def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configuracion: ConfiguracionSimulacion):
+def simular_politica(politica: PoliticaInventario, configuracion: ConfiguracionSimulacion):
     """
-    Simula la política de inventario dada por (r, Q) durante dias_simulacion días.
+    Simula la política de inventario dada por (r, Q) durante los días especificados en la configuración.
 
     Args:
         politica (PoliticaInventario): Política de inventario (r, Q)
-        dias_simulacion (int): Días totales de simulación
         configuracion (ConfiguracionSimulacion): Configuración de la simulación
 
     Returns:
@@ -24,6 +25,7 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
         inventario=configuracion.get_inventario_inicial()
     )
 
+    dias_simulacion = configuracion.get_dias_simulacion()
 
     while fel.hay_eventos():
         evento_actual = fel.obtener_siguiente_evento()
@@ -47,7 +49,7 @@ def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configu
         nuevo_pedido = revision(configuracion, dia, resultados.obtener_inventario(), politica)
 
         if nuevo_pedido is not None:
-            costo_pedidos += politica.get_cantidad_pedido() * configuracion.calcular_costo_unitario_pedido(
+            costo_pedido = politica.get_cantidad_pedido() * configuracion.calcular_costo_unitario_pedido(
                 politica.get_cantidad_pedido())
             resultados.agregar_costo_pedido(costo_pedido)
 

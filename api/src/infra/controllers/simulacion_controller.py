@@ -43,7 +43,8 @@ async def simular_inventario(
         costo_pedido_grande=request.costo_pedido_grande,
         plazo_entrega_min=request.plazo_entrega_min,
         plazo_entrega_max=request.plazo_entrega_max,
-        demanda_media=request.demanda
+        demanda_media=request.demanda,
+        dias_simulacion=total_dias_simulacion
     )
     
     resultados = []
@@ -57,7 +58,6 @@ async def simular_inventario(
         
         resultados.append(simular_politica(
             politica=politica,
-            dias_simulacion=total_dias_simulacion,
             configuracion=configuracion
         ))
 

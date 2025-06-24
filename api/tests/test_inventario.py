@@ -19,11 +19,12 @@ class TestInventario:
             plazo_entrega_min=1,
             plazo_entrega_max=3,
             costo_pedido_pequeno=10,
-            costo_pedido_grande=5
+            costo_pedido_grande=5,
+            dias_simulacion=10
         )
         
         # Ejecutar simulación
-        resultado = simular_politica(politica, dias_simulacion=10, configuracion=configuracion)
+        resultado = simular_politica(politica, configuracion=configuracion)
         
         # Verificar que el resultado contiene los campos esperados
         assert "r" in resultado
@@ -62,11 +63,12 @@ class TestInventario:
             plazo_entrega_min=1,
             plazo_entrega_max=2,
             costo_pedido_pequeno=5,
-            costo_pedido_grande=3
+            costo_pedido_grande=3,
+            dias_simulacion=5
         )
         
         # Si la simulación funciona, significa que los eventos se crean correctamente
-        resultado = simular_politica(politica, dias_simulacion=5, configuracion=configuracion)
+        resultado = simular_politica(politica, configuracion=configuracion)
         
         # Verificar que la simulación completó sin errores
         assert resultado is not None

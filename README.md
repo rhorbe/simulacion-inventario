@@ -792,6 +792,7 @@ El sistema implementa una clase `FEL` (Future Event List) para encapsular y gest
 
 #### Características de la Clase FEL
 
+- **Inicialización Flexible**: Ahora la FEL puede inicializarse vacía o con una lista de eventos iniciales.
 - **Ordenamiento Automático**: Los eventos se ordenan automáticamente por tiempo de ocurrencia
 - **Gestión de Eventos**: Proporciona métodos para agregar, obtener y consultar eventos
 - **Encapsulación**: Oculta la lógica de gestión de la lista de eventos
@@ -806,9 +807,17 @@ class FEL:
     Encapsula la lógica de gestión de eventos ordenados por tiempo de ocurrencia.
     """
     
-    def __init__(self):
-        """Inicializa una lista de eventos futuros vacía."""
-        self._eventos: List[EventoBase] = []
+    def __init__(self, eventos_iniciales: Optional[List[EventoBase]] = None):
+        """
+        Inicializa una lista de eventos futuros.
+        Args:
+            eventos_iniciales: Lista opcional de eventos iniciales. Si es None, se crea una lista vacía.
+        """
+        if eventos_iniciales is None:
+            self._eventos: List[EventoBase] = []
+        else:
+            self._eventos = eventos_iniciales.copy()
+            self._ordenar_eventos()
     
     def agregar_evento(self, evento: EventoBase) -> None:
         """Agrega un evento a la lista y mantiene el orden cronológico."""
@@ -843,67 +852,38 @@ class FEL:
 #### Uso de la Clase FEL
 
 ```python
+from api.src.domain.models.fel import FEL
+from api.src.domain.models.evento import EventoDemanda
+
 # Crear FEL vacía
-fel = FEL()
+fel_vacia = FEL()
 
-# Agregar eventos (se ordenan automáticamente)
-fel.agregar_evento(EventoDemanda(dia=3, cantidad=10))
-fel.agregar_evento(EventoDemanda(dia=1, cantidad=5))
-fel.agregar_evento(EventoDemanda(dia=2, cantidad=8))
+# Crear FEL con eventos iniciales
+evento1 = EventoDemanda(dia=0, cantidad=10)
+evento2 = EventoDemanda(dia=2, cantidad=5)
+fel = FEL([evento1, evento2])
 
-# Verificar si hay eventos
-if fel.hay_eventos():
-    # Obtener el próximo evento (día 1)
-    evento = fel.obtener_siguiente_evento()
-    
-# Verificar eventos futuros
-if not fel.hay_eventos_futuros_en_dia(dia + 1):
-    # Crear nuevo evento para el día siguiente
-    nuevo_evento = EventoDemanda(dia + 1, cantidad)
-    fel.agregar_evento(nuevo_evento)
+# Los eventos se ordenan automáticamente
+assert fel.obtener_siguiente_evento().get_dia() == 0
+assert fel.obtener_siguiente_evento().get_dia() == 2
 ```
 
 #### Integración en la Simulación
 
-La clase `FEL` se integra en la función principal de simulación:
+La clase `FEL` se integra en la función principal de simulación inicializándose directamente con el evento de demanda inicial:
 
 ```python
-def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configuracion: ConfiguracionSimulacion):
-    # Inicializar FEL con evento inicial
-    fel = FEL()
-    fel.agregar_evento(EventoDemanda(0, DemandaMother.random(seed=42).value(demanda_media))]
-    
-    # Bucle principal de simulación
-    while fel.hay_eventos():
-        evento_actual = fel.obtener_siguiente_evento()
-        
-        # Procesar evento según su tipo
-        if isinstance(evento_actual, EventoDemanda):
-            # Procesar demanda
-            pass
-        elif isinstance(evento_actual, EventoLlegadaPedido):
-            # Procesar llegada de pedido
-            pass
-        
-        # Crear nuevos eventos si es necesario
-        if nuevo_pedido:
-            fel.agregar_evento(nuevo_pedido)
-        
-        # Verificar si necesitamos crear nueva demanda
-        if not fel.hay_eventos_futuros_en_dia(dia + 1):
-            nueva_demanda = EventoDemanda(dia + 1, cantidad)
-            fel.agregar_evento(nueva_demanda)
+from api.src.domain.models.fel import FEL
+from api.src.domain.models.evento import EventoDemanda
+from api.src.domain.object_mothers import DemandaMother
+
+def simular_politica(politica, configuracion):
+    evento_demanda_inicial = EventoDemanda(0, DemandaMother.random(seed=42).value(configuracion.get_demanda_media()))
+    fel = FEL([evento_demanda_inicial])
+    # ... resto de la simulación ...
 ```
 
-#### Beneficios de la Clase FEL
-
-1. **Encapsulación**: Oculta la lógica de gestión de la lista de eventos
-2. **Ordenamiento Automático**: Los eventos se mantienen ordenados cronológicamente
-3. **Interfaz Limpia**: Métodos específicos para cada operación
-4. **Facilidad de Testing**: Es más fácil testear la lógica de gestión de eventos
-5. **Extensibilidad**: Fácil agregar nuevas funcionalidades de gestión de eventos
-6. **Separación de Responsabilidades**: La gestión de eventos está separada de la lógica de simulación
-7. **Reutilización**: La clase puede ser reutilizada en otras simulaciones discretas de eventos
+**Beneficio:** Esto permite una inicialización más clara y flexible de la lista de eventos, facilitando la extensión y el testing de la simulación.
 
 ### Object Mothers
 

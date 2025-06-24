@@ -7,9 +7,18 @@ class FEL:
     Encapsula la lógica de gestión de eventos ordenados por tiempo de ocurrencia.
     """
     
-    def __init__(self):
-        """Inicializa una lista de eventos futuros vacía."""
-        self._eventos: List[EventoBase] = []
+    def __init__(self, eventos_iniciales: Optional[List[EventoBase]] = None):
+        """
+        Inicializa una lista de eventos futuros.
+        
+        Args:
+            eventos_iniciales: Lista opcional de eventos iniciales. Si es None, se crea una lista vacía.
+        """
+        if eventos_iniciales is None:
+            self._eventos: List[EventoBase] = []
+        else:
+            self._eventos = eventos_iniciales.copy()
+            self._ordenar_eventos()
     
     def agregar_evento(self, evento: EventoBase) -> None:
         """

@@ -15,9 +15,16 @@ def simular_politica(politica: PoliticaInventario, configuracion: ConfiguracionS
     Returns:
         dict: Diccionario con los resultados de la simulación.
     """
-    fel = FEL()
-    fel.agregar_evento(EventoDemanda(0, DemandaMother.random(seed=42).value(configuracion.get_demanda_media())))
-
+    # Inicializar FEL con el evento de demanda inicial
+    fel = FEL(
+        [
+            (EventoDemanda(
+                0,
+                DemandaMother
+                    .random(seed=42)
+                    .value(configuracion.get_demanda_media())
+            ))
+        ])
 
     resultados = ResultadosPolitica(
         r=politica.get_punto_reorden(),
@@ -25,13 +32,11 @@ def simular_politica(politica: PoliticaInventario, configuracion: ConfiguracionS
         inventario=configuracion.get_inventario_inicial()
     )
 
-    dias_simulacion = configuracion.get_dias_simulacion()
-
     while fel.hay_eventos():
         evento_actual = fel.obtener_siguiente_evento()
         dia = evento_actual.get_dia()
 
-        if dia >= dias_simulacion: break
+        if dia >= configuracion.get_dias_simulacion(): break
 
         if isinstance(evento_actual, EventoDemanda):
             d = evento_actual.get_cantidad()

@@ -19,6 +19,9 @@ class FEL:
         else:
             self._eventos = eventos_iniciales.copy()
             self._ordenar_eventos()
+        
+        # Evento actual que se está procesando
+        self._evento_actual: Optional[EventoBase] = None
     
     def agregar_evento(self, evento: EventoBase) -> None:
         """
@@ -29,18 +32,23 @@ class FEL:
         """
         self._eventos.append(evento)
         self._ordenar_eventos()
-    
-    def obtener_siguiente_evento(self) -> Optional[EventoBase]:
+
+    def obtener_evento_actual(self) -> EventoBase:
         """
-        Obtiene y remueve el próximo evento de la lista (el de menor tiempo).
+        Obtiene el próximo evento de la lista (el de menor tiempo).
+        Si no hay eventos en la lista, lanza una excepción.
         
         Returns:
-            El próximo evento o None si la lista está vacía
+            El próximo evento
+            
+        Raises:
+            ValueError: Si no hay eventos disponibles en la lista
         """
         if not self._eventos:
-            return None
+            raise ValueError("No hay eventos disponibles en la FEL")
+        
         return self._eventos.pop(0)
-    
+
     def hay_eventos(self) -> bool:
         """
         Verifica si hay eventos en la lista.
@@ -61,42 +69,23 @@ class FEL:
             True si hay eventos en o después del día especificado
         """
         return any(evento.get_dia() >= dia for evento in self._eventos)
-    
-    def obtener_proximo_dia_evento(self) -> Optional[int]:
-        """
-        Obtiene el día del próximo evento sin removerlo de la lista.
-        
-        Returns:
-            El día del próximo evento o None si la lista está vacía
-        """
-        if not self._eventos:
-            return None
-        return self._eventos[0].get_dia()
-    
-    def limpiar(self) -> None:
-        """Limpia todos los eventos de la lista."""
-        self._eventos.clear()
-    
-    def obtener_cantidad_eventos(self) -> int:
-        """
-        Obtiene la cantidad de eventos en la lista.
-        
-        Returns:
-            Número de eventos en la lista
-        """
-        return len(self._eventos)
-    
+
     def _ordenar_eventos(self) -> None:
         """Ordena los eventos por día de ocurrencia (ascendente)."""
         self._eventos.sort(key=lambda x: x.get_dia())
     
     def __str__(self) -> str:
         """Representación en string de la FEL."""
-        if not self._eventos:
+        if not self._eventos and not self._evento_actual:
             return "FEL: []"
         
         eventos_str = ", ".join([f"{evento.get_tipo()}(día={evento.get_dia()})" for evento in self._eventos])
-        return f"FEL: [{eventos_str}]"
+        fel_str = f"FEL: [{eventos_str}]"
+        
+        if self._evento_actual:
+            fel_str += f" | Actual: {self._evento_actual.get_tipo()}(día={self._evento_actual.get_dia()})"
+        
+        return fel_str
     
     def __len__(self) -> int:
         """Retorna la cantidad de eventos en la lista."""

@@ -6,6 +6,7 @@ from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
 class TestInventario:
     """Tests para verificar que la refactorización con isinstance funciona correctamente."""
     
+    @pytest.mark.timeout(10)
     def test_simulacion_con_eventos_tipificados(self):
         """Test que verifica que la simulación funciona correctamente con eventos tipificados."""
         # Configuración de prueba
@@ -48,6 +49,7 @@ class TestInventario:
         assert resultado["r"] == 10
         assert resultado["Q"] == 50
     
+    @pytest.mark.timeout(10)
     def test_eventos_creados_correctamente(self):
         """Test que verifica que los eventos se crean con las clases correctas."""
         # Este test verifica indirectamente que se usan las clases correctas
@@ -75,6 +77,7 @@ class TestInventario:
         assert resultado["r"] == 5
         assert resultado["Q"] == 20
     
+    @pytest.mark.timeout(10)
     def test_verificacion_isinstance_en_codigo(self):
         """Test que verifica que el código usa isinstance correctamente."""
         # Crear eventos de prueba

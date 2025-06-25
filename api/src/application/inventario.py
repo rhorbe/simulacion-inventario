@@ -4,6 +4,7 @@ from api.src.domain.models.fel import FEL
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
 from api.src.domain.object_mothers import DemandaMother, TiempoEntregaMother
 
+
 def simular_politica(politica: PoliticaInventario, configuracion: ConfiguracionSimulacion):
     """
     Simula la política de inventario dada por (r, Q) durante los días especificados en la configuración.
@@ -33,10 +34,12 @@ def simular_politica(politica: PoliticaInventario, configuracion: ConfiguracionS
     )
 
     while fel.hay_eventos():
-        evento_actual = fel.obtener_siguiente_evento()
+        # Obtener el evento actual (automáticamente obtiene el siguiente si no hay uno actual)
+        evento_actual = fel.obtener_evento_actual()
         dia = evento_actual.get_dia()
 
-        if dia >= configuracion.get_dias_simulacion(): break
+        if dia >= configuracion.get_dias_simulacion(): 
+            break
 
         if isinstance(evento_actual, EventoDemanda):
             d = evento_actual.get_cantidad()

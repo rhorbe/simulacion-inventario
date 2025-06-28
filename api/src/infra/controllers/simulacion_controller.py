@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from api.src.application.inventario import simular_politica
+from api.src.application.inventario import SimulacionInventario
 from api.src.domain.repository.config import Config
 from api.src.domain.dto.simulacion_request import SimulacionRequest
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
@@ -56,10 +56,9 @@ async def simular_inventario(
             cantidad_pedido=politica_dto.cantidad_pedido
         )
         
-        resultados.append(simular_politica(
-            politica=politica,
-            configuracion=configuracion
-        ))
+        # Crear instancia de SimulacionInventario y ejecutar simulación
+        simulacion = SimulacionInventario(politica, configuracion)
+        resultados.append(simulacion.ejecutar())
 
     # Limpiar configuraciones por defecto
     PoliticaInventarioConConfig.clear_default_config()

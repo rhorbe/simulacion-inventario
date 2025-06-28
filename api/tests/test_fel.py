@@ -64,11 +64,11 @@ class TestFEL:
         fel = FEL([evento1, evento2])
         
         # El primer evento debe ser el del día 1 (ordenado)
-        primer_evento = fel.obtener_evento_actual()
+        primer_evento = fel.siguiente()
         assert primer_evento.get_dia() == 1
         
         # El segundo evento debe ser el del día 5
-        segundo_evento = fel.obtener_evento_actual()
+        segundo_evento = fel.siguiente()
         assert segundo_evento.get_dia() == 5
         
         # No hay más eventos
@@ -83,9 +83,9 @@ class TestFEL:
         fel = FEL([evento1, evento2, evento3])
         
         # Los eventos deben salir en orden: 1, 5, 10
-        assert fel.obtener_evento_actual().get_dia() == 1
-        assert fel.obtener_evento_actual().get_dia() == 5
-        assert fel.obtener_evento_actual().get_dia() == 10
+        assert fel.siguiente().get_dia() == 1
+        assert fel.siguiente().get_dia() == 5
+        assert fel.siguiente().get_dia() == 10
     
     def test_hay_eventos_futuros_en_dia(self):
         """Test que verifica la función hay_eventos_futuros_en_dia."""
@@ -109,10 +109,10 @@ class TestFEL:
         fel = FEL([evento_demanda, evento_llegada])
         
         # Verificar que se pueden obtener ambos tipos
-        primer_evento = fel.obtener_evento_actual()
+        primer_evento = fel.siguiente()
         assert isinstance(primer_evento, EventoDemanda)
         
-        segundo_evento = fel.obtener_evento_actual()
+        segundo_evento = fel.siguiente()
         assert isinstance(segundo_evento, EventoLlegadaPedido)
     
     def test_obtener_evento_actual_sin_eventos(self):
@@ -120,4 +120,4 @@ class TestFEL:
         fel = FEL()
         
         with pytest.raises(ValueError, match="No hay eventos disponibles en la FEL"):
-            fel.obtener_evento_actual() 
+            fel.siguiente()

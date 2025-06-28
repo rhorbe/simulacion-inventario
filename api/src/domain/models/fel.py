@@ -1,5 +1,5 @@
 from typing import List, Optional
-from api.src.domain.models.evento import EventoBase
+from api.src.domain.models.evento import Evento
 
 class FEL:
     """
@@ -7,7 +7,7 @@ class FEL:
     Encapsula la lógica de gestión de eventos ordenados por tiempo de ocurrencia.
     """
     
-    def __init__(self, eventos_iniciales: Optional[List[EventoBase]] = None):
+    def __init__(self, eventos_iniciales: Optional[List[Evento]] = None):
         """
         Inicializa una lista de eventos futuros.
         
@@ -15,15 +15,15 @@ class FEL:
             eventos_iniciales: Lista opcional de eventos iniciales. Si es None, se crea una lista vacía.
         """
         if eventos_iniciales is None:
-            self._eventos: List[EventoBase] = []
+            self._eventos: List[Evento] = []
         else:
             self._eventos = eventos_iniciales.copy()
             self._ordenar_eventos()
         
         # Evento actual que se está procesando
-        self._evento_actual: Optional[EventoBase] = None
+        self._evento_actual: Optional[Evento] = None
     
-    def agregar_evento(self, evento: EventoBase) -> None:
+    def agregar_evento(self, evento: Evento) -> None:
         """
         Agrega un evento a la lista y mantiene el orden cronológico.
         
@@ -33,7 +33,7 @@ class FEL:
         self._eventos.append(evento)
         self._ordenar_eventos()
 
-    def obtener_evento_actual(self) -> EventoBase:
+    def siguiente(self) -> Evento:
         """
         Obtiene el próximo evento de la lista (el de menor tiempo).
         Si no hay eventos en la lista, lanza una excepción.
@@ -42,12 +42,13 @@ class FEL:
             El próximo evento
             
         Raises:
-            ValueError: Si no hay eventos disponibles en la lista
+            ValueError: Si no hay eventos disponibles en la FEL
         """
         if not self._eventos:
             raise ValueError("No hay eventos disponibles en la FEL")
         
-        return self._eventos.pop(0)
+        self._evento_actual = self._eventos.pop(0)
+        return self._evento_actual
 
     def hay_eventos(self) -> bool:
         """

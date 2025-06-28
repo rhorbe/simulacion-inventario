@@ -206,8 +206,8 @@ FASTAPI_ENV=development
 
 **Puntos de debug recomendados:**
 - `api/main.py`: Línea 30 (función `simular`)
-- `api/application/inventario.py`: Línea 95 (inicio de `simular_politica`)
-- `api/application/inventario.py`: Línea 120 (procesamiento de eventos)
+- `api/application/inventario.py`: Línea 15 (clase `SimulacionInventario`)
+- `api/application/inventario.py`: Línea 45 (método `ejecutar`)
 - `api/infra/repository/yml_config_repository.py`: Línea 25 (carga de configuración)
 
 ## 📁 Estructura del Proyecto
@@ -280,7 +280,7 @@ simulacion-inventario/
   - **`config.yml`**: Archivo de configuración centralizado con todos los parámetros de la simulación
 
 ##### Capa de Aplicación (`api/application/`)
-- **`inventario.py`**: Contiene toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe ValueObjects como parámetros.
+- **`inventario.py`**: Contiene la clase `SimulacionInventario` que encapsula toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe ValueObjects como parámetros.
 
 ##### Capa de Dominio (`api/src/domain/`)
 - **`dto/`**: Data Transfer Objects para comunicación entre capas
@@ -642,685 +642,66 @@ eventos_ordenados = sorted(eventos, key=lambda x: x.get_dia())
 
 #### Integración en la Simulación
 
-Los eventos específicos se integran en la lógica de simulación:
-
-```python
-# Crear evento de demanda inicial
-lista_eventos = [EventoDemanda(0, DemandaMother.random(seed=42).value(demanda_media))]
-
-# Procesar eventos según su tipo
-if evento_actual.get_tipo() == "demanda":
-    # Procesar demanda
-    pass
-elif evento_actual.get_tipo() == "llegada_pedido":
-    # Procesar llegada de pedido
-    pass
-
-# Crear nuevo evento de llegada de pedido
-nuevoPedido = EventoLlegadaPedido(
-    dia + TiempoEntregaMother.random(seed=42).value(plazo_min, plazo_max),
-    cantidad_pedido
-)
-```
-
-#### Beneficios de la Jerarquía de Eventos
-
-1. **Tipificación Fuerte**: Cada tipo de evento tiene su propia clase con tipos específicos
-2. **Mejor Legibilidad**: El código es más claro al usar `EventoDemanda` en lugar de `Evento(tipo="demanda", ...)`
-3. **Extensibilidad**: Fácil agregar nuevos tipos de eventos heredando de `EventoBase`
-4. **Validación de Tipos**: El compilador puede detectar errores de tipos en tiempo de compilación
-5. **Polimorfismo**: Todos los eventos pueden ser tratados uniformemente a través de la interfaz común
-6. **Compatibilidad**: Se mantiene la clase original para no romper código existente
-
-### Clase ResultadosPolitica
-
-El sistema implementa una clase `ResultadosPolitica` para encapsular y gestionar todos los resultados acumulados durante la simulación de inventario para una política específica. Esta clase proporciona una interfaz limpia para manejar costos e ingresos junto con los parámetros de la política.
-
-#### Características de la Clase ResultadosPolitica
-
-- **Encapsulación**: Agrupa todas las variables de resultados en un solo objeto
-- **Parámetros de Política**: Incluye los atributos `r` (punto de reorden) y `Q` (cantidad de pedido)
-- **Métodos de Acumulación**: Proporciona métodos específicos para agregar cada tipo de costo o ingreso
-- **Cálculo Automático**: Calcula automáticamente la ganancia total
-- **Conversión a Diccionario**: Convierte los resultados al formato esperado por la API
-
-#### Implementación de la Clase
-
-```python
-@dataclass
-class ResultadosPolitica:
-    """
-    Clase que encapsula los resultados de la simulación de inventario para una política específica.
-    Contiene todos los costos e ingresos acumulados durante la simulación, junto con los parámetros de la política.
-    """
-    r: int
-    Q: int
-    costo_almacenamiento: float = 0.0
-    costo_total_faltante: float = 0.0
-    costo_pedidos: float = 0.0
-    ingresos: float = 0.0
-    
-    def agregar_costo_almacenamiento(self, costo: float) -> None:
-        """Agrega un costo de almacenamiento al total acumulado."""
-        self.costo_almacenamiento += costo
-    
-    def agregar_costo_faltante(self, costo: float) -> None:
-        """Agrega un costo por faltante al total acumulado."""
-        self.costo_total_faltante += costo
-    
-    def agregar_costo_pedido(self, costo: float) -> None:
-        """Agrega un costo de pedido al total acumulado."""
-        self.costo_pedidos += costo
-    
-    def agregar_ingreso(self, ingreso: float) -> None:
-        """Agrega un ingreso al total acumulado."""
-        self.ingresos += ingreso
-    
-    def calcular_ganancia(self) -> float:
-        """Calcula la ganancia total (ingresos - costos totales)."""
-        costo_total = self.costo_almacenamiento + self.costo_total_faltante + self.costo_pedidos
-        return self.ingresos - costo_total
-    
-    def to_dict(self) -> dict:
-        """Convierte los resultados a un diccionario con el formato esperado por la API."""
-        return {
-            "r": self.r,
-            "Q": self.Q,
-            "ingresos": self.ingresos,
-            "costo_alm": self.costo_almacenamiento,
-            "costo_faltante": self.costo_total_faltante,
-            "costo_pedidos": self.costo_pedidos,
-            "ganancia": self.calcular_ganancia(),
-        }
-```
-
-#### Uso de la Clase ResultadosPolitica
-
-```python
-# Crear objeto de resultados con parámetros de política
-resultados = ResultadosPolitica(r=10, Q=50)
-
-# Acumular costos e ingresos durante la simulación
-resultados.agregar_ingreso(ventas * precio_venta)
-resultados.agregar_costo_faltante(faltante * costo_faltante)
-resultados.agregar_costo_pedido(costo_pedido)
-resultados.agregar_costo_almacenamiento(inventario * costo_almacenar)
-
-# Obtener resultados finales
-dict_resultado = resultados.to_dict()
-```
-
-#### Integración en la Simulación
-
-La clase `ResultadosPolitica` se integra en la función principal de simulación:
-
-```python
-def simular_politica(politica: PoliticaInventario, dias_simulacion: int, configuracion: ConfiguracionSimulacion):
-    # Inicializar resultados con parámetros de la política
-    resultados = ResultadosPolitica(
-        r=politica.get_punto_reorden(),
-        Q=politica.get_cantidad_pedido()
-    )
-    
-    # Durante la simulación, acumular resultados
-    if isinstance(evento_actual, EventoDemanda):
-        ventas = min(d, inventario)
-        faltante = max(0, d - inventario)
-        
-        inventario -= ventas
-        resultados.agregar_ingreso(ventas * configuracion.get_precio_venta())
-        resultados.agregar_costo_faltante(faltante * configuracion.get_costo_faltante())
-    
-    # Al final, retornar resultados
-    return resultados.to_dict()
-```
-
-#### Beneficios de la Clase ResultadosPolitica
-
-1. **Encapsulación**: Agrupa todas las variables relacionadas en un solo objeto
-2. **Parámetros de Política**: Incluye los parámetros `r` y `Q` como parte del objeto
-3. **Métodos Específicos**: Cada tipo de costo/ingreso tiene su propio método de acumulación
-4. **Cálculo Centralizado**: La ganancia se calcula automáticamente
-5. **Mejor Legibilidad**: El código es más claro y expresivo
-6. **Facilidad de Testing**: Es más fácil testear la lógica de acumulación
-7. **Extensibilidad**: Fácil agregar nuevos tipos de costos o ingresos
-8. **Asociación Directa**: Los resultados están directamente asociados con los parámetros de la política
-
-### Clase FEL (Future Event List)
-
-El sistema implementa una clase `FEL` (Future Event List) para encapsular y gestionar la lista de eventos futuros en la simulación discreta de eventos. Esta clase proporciona una interfaz limpia para manejar eventos ordenados cronológicamente.
-
-#### Características de la Clase FEL
-
-- **Inicialización Flexible**: Ahora la FEL puede inicializarse vacía o con una lista de eventos iniciales.
-- **Ordenamiento Automático**: Los eventos se ordenan automáticamente por tiempo de ocurrencia
-- **Gestión de Eventos**: Proporciona métodos para agregar, obtener y consultar eventos
-- **Encapsulación**: Oculta la lógica de gestión de la lista de eventos
-- **Interfaz Limpia**: Métodos específicos para cada operación de gestión de eventos
-
-#### Implementación de la Clase
-
-```python
-class FEL:
-    """
-    Future Event List (FEL) - Lista de eventos futuros para simulación discreta de eventos.
-    Encapsula la lógica de gestión de eventos ordenados por tiempo de ocurrencia.
-    """
-    
-    def __init__(self, eventos_iniciales: Optional[List[EventoBase]] = None):
-        """
-        Inicializa una lista de eventos futuros.
-        Args:
-            eventos_iniciales: Lista opcional de eventos iniciales. Si es None, se crea una lista vacía.
-        """
-        if eventos_iniciales is None:
-            self._eventos: List[EventoBase] = []
-        else:
-            self._eventos = eventos_iniciales.copy()
-            self._ordenar_eventos()
-    
-    def agregar_evento(self, evento: EventoBase) -> None:
-        """Agrega un evento a la lista y mantiene el orden cronológico."""
-        self._eventos.append(evento)
-        self._ordenar_eventos()
-    
-    def obtener_siguiente_evento(self) -> Optional[EventoBase]:
-        """Obtiene y remueve el próximo evento de la lista (el de menor tiempo)."""
-        if not self._eventos:
-            return None
-        return self._eventos.pop(0)
-    
-    def hay_eventos(self) -> bool:
-        """Verifica si hay eventos en la lista."""
-        return len(self._eventos) > 0
-    
-    def hay_eventos_futuros_en_dia(self, dia: int) -> bool:
-        """Verifica si hay eventos programados para un día específico o posterior."""
-        return any(evento.get_dia() >= dia for evento in self._eventos)
-    
-    def obtener_proximo_dia_evento(self) -> Optional[int]:
-        """Obtiene el día del próximo evento sin removerlo de la lista."""
-        if not self._eventos:
-            return None
-        return self._eventos[0].get_dia()
-    
-    def _ordenar_eventos(self) -> None:
-        """Ordena los eventos por día de ocurrencia (ascendente)."""
-        self._eventos.sort(key=lambda x: x.get_dia())
-```
-
-#### Uso de la Clase FEL
-
-```python
-from api.src.domain.models.fel import FEL
-from api.src.domain.models.evento import EventoDemanda
-
-# Crear FEL vacía
-fel_vacia = FEL()
-
-# Crear FEL con eventos iniciales
-evento1 = EventoDemanda(dia=0, cantidad=10)
-evento2 = EventoDemanda(dia=2, cantidad=5)
-fel = FEL([evento1, evento2])
-
-# Los eventos se ordenan automáticamente
-assert fel.obtener_siguiente_evento().get_dia() == 0
-assert fel.obtener_siguiente_evento().get_dia() == 2
-```
-
-#### Integración en la Simulación
-
-La clase `FEL` se integra en la función principal de simulación inicializándose directamente con el evento de demanda inicial:
-
-```python
-from api.src.domain.models.fel import FEL
-from api.src.domain.models.evento import EventoDemanda
-from api.src.domain.object_mothers import DemandaMother
-
-def simular_politica(politica, configuracion):
-    evento_demanda_inicial = EventoDemanda(0, DemandaMother.random(seed=42).value(configuracion.get_demanda_media()))
-    fel = FEL([evento_demanda_inicial])
-    # ... resto de la simulación ...
-```
-
-**Beneficio:** Esto permite una inicialización más clara y flexible de la lista de eventos, facilitando la extensión y el testing de la simulación.
-
-### Object Mothers
-
-El sistema implementa el patrón **Object Mother** para encapsular la lógica de generación de valores aleatorios utilizados en la simulación. Este patrón permite separar la responsabilidad de generar datos de prueba o valores aleatorios del resto de la lógica de negocio.
-
-#### Características de los Object Mothers
-
-- **Herencia de Clase Base**: Todos los Object Mothers heredan de `BaseObjectMother`
-- **Método de Clase `random(seed)`**: Cada Object Mother tiene un método de clase que devuelve una instancia configurada con la semilla especificada
-- **Método de instancia `value(...)`**: Permite generar el valor aleatorio de forma fluida, sin necesidad de instanciar variables auxiliares
-- **Generadores Independientes**: Cada Object Mother mantiene su propio generador de números aleatorios
-- **Configurabilidad**: Permite cambiar semillas para reproducibilidad de resultados
-- **Testabilidad**: Fácil testing de la lógica de generación de valores
-
-#### Clase Base: BaseObjectMother
-
-```python
-class BaseObjectMother(ABC):
-    """
-    Clase base abstracta para todos los Object Mother del dominio.
-    """
-    @classmethod
-    @abstractmethod
-    def random(cls, seed):
-        """
-        Devuelve una instancia del Object Mother con la semilla indicada.
-        """
-        pass
-```
-
-#### Object Mothers Implementados
-
-##### `DemandaMother`
-```python
-class DemandaMother(BaseObjectMother):
-    def __init__(self, seed: Optional[int] = 42):
-        self.generador_aleatorio = np.random.default_rng(seed=seed)
-    
-    def value(self, demanda_media: int) -> int:
-        """Genera una demanda aleatoria usando distribución de Poisson."""
-        return self.generador_aleatorio.poisson(demanda_media)
-    
-    @classmethod
-    def random(cls, seed=42):
-        return cls(seed=seed)
-```
-
-**Características:**
-- Genera demandas aleatorias usando distribución de Poisson
-- Utiliza `numpy.random.default_rng` para generación de números aleatorios
-- Parámetro: `demanda_media` (media de la distribución Poisson)
-
-##### `TiempoEntregaMother`
-```python
-class TiempoEntregaMother(BaseObjectMother):
-    def __init__(self, seed: Optional[int] = 42):
-        self.generador_aleatorio = random.Random(seed)
-    
-    def value(self, plazo_min: int, plazo_max: int) -> int:
-        """Genera un tiempo de entrega aleatorio usando distribución uniforme."""
-        return self.generador_aleatorio.randint(plazo_min, plazo_max)
-    
-    @classmethod
-    def random(cls, seed=42):
-        return cls(seed=seed)
-```
-
-**Características:**
-- Genera tiempos de entrega aleatorios usando distribución uniforme
-- Utiliza `random.Random` para generación de números aleatorios
-- Parámetros: `plazo_min` y `plazo_max` (rango de la distribución uniforme)
-
-#### Uso de Object Mothers
-
-```python
-# Llamada fluida sin necesidad de instanciar variables auxiliares
-demanda = DemandaMother.random(seed=42).value(demanda_media=10)
-tiempo = TiempoEntregaMother.random(seed=42).value(plazo_min=1, plazo_max=5)
-
-# También se puede reutilizar la instancia si se desea:
-demanda_gen = DemandaMother.random(seed=42)
-demanda1 = demanda_gen.value(10)
-demanda2 = demanda_gen.value(10)
-```
-
-#### Integración en la Simulación
-
 Los Object Mothers se integran en la lógica de simulación de la siguiente manera:
 
 ```python
-# En simular_politica()
-lista_eventos = [Evento("demanda", 0, DemandaMother.random(seed=42).value(demanda_media))]
-
-# Al procesar eventos de demanda
-if not existen_eventos_pendientes(lista_eventos, dia + 1):
-    nueva_demanda = Evento("demanda", dia + 1, DemandaMother.random(seed=42).value(demanda_media))
-    lista_eventos.append(nueva_demanda)
-
-# Al generar pedidos
-nuevoPedido = Evento("llegada_pedido", 
-                     dia + TiempoEntregaMother.random(seed=42).value(plazo_entrega_min, plazo_entrega_max), 
-                     Q)
+# En SimulacionInventario
+class SimulacionInventario:
+    def _inicializar_fel(self) -> FEL:
+        return FEL([
+            (EventoDemanda(
+                0,
+                DemandaMother.random(seed=42).value(self.configuracion.get_demanda_media())
+            ))
+        ])
+    
+    def _calcular_dia_entrega(self, evento: Evento) -> int:
+        return evento.get_dia() + TiempoEntregaMother.random(seed=42).value(
+            self.configuracion.get_plazo_entrega_min(),
+            self.configuracion.get_plazo_entrega_max()
+        )
 ```
 
-#### Beneficios del Patrón Object Mother
+#### Beneficios del Nuevo Diseño
 
-1. **Separación de Responsabilidades**: La lógica de generación de valores aleatorios está encapsulada en clases específicas
-2. **Reutilización**: Los Object Mothers pueden ser usados en otros contextos (tests, diferentes simulaciones)
-3. **Testabilidad**: Cada Object Mother puede ser testeado independientemente
-4. **Configurabilidad**: Fácil cambio de semillas para reproducibilidad de resultados
-5. **Extensibilidad**: Fácil agregar nuevos tipos de generadores heredando de `BaseObjectMother`
-6. **Mantenibilidad**: Cambios en la lógica de generación solo afectan a los Object Mothers correspondientes
+- **Extensibilidad**: Agregar nuevos tipos de eventos o lógica es tan simple como crear un nuevo handler.
+- **Testabilidad**: Cada componente puede ser testeado de forma aislada.
+- **Desacoplamiento**: La lógica de eventos, resultados y configuración está separada y desacoplada.
+- **Claridad**: El flujo de la simulación es explícito y fácil de seguir.
+- **Reutilización**: El mismo ciclo de simulación puede ser usado para diferentes políticas y configuraciones.
 
-#### Testing de Object Mothers
-
-```bash
-# Ejecutar tests de Object Mothers
-python -m pytest tests/test_object_mothers.py -v
-
-# Tests específicos
-python -m pytest tests/test_object_mothers.py::TestDemandaMother -v
-python -m pytest tests/test_object_mothers.py::TestTiempoEntregaMother -v
-```
-
-### Excepciones de Dominio
+#### Ejemplo de Handler de Evento
 
 ```python
-class DomainError(Exception):
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
+@dataclass
+class DemandaEventHandler:
+    def can_handle(self, evento):
+        return evento.__class__.__name__ == 'EventoDemanda'
+    def handle(self, evento, context):
+        d = evento.get_cantidad()
+        inventario_actual = context.resultados.obtener_inventario()
+        ventas = min(d, inventario_actual)
+        faltante = max(0, d - inventario_actual)
+        context.resultados.actualizar_inventario(-ventas)
+        context.resultados.agregar_ingreso(ventas * context.configuracion.get_precio_venta())
+        context.resultados.agregar_costo_faltante(faltante * context.configuracion.get_costo_faltante())
 ```
 
-**Características:**
-- Excepción base para todos los errores de dominio
-- Mensajes claros y descriptivos para cada validación fallida
-- Facilita el debugging y la identificación de problemas
-
-### Beneficios de la Refactorización
-
-1. **Validaciones Centralizadas**: Todas las validaciones de negocio están encapsuladas en los Value Objects
-2. **Código Más Limpio**: La capa de aplicación recibe objetos validados en lugar de tipos primitivos
-3. **Mejor Mantenibilidad**: Cambios en las reglas de negocio solo requieren modificar los Value Objects
-4. **Testing Mejorado**: Tests unitarios específicos para cada Value Object
-5. **Documentación Viva**: Los Value Objects documentan las reglas de negocio en el código
-6. **Prevención de Errores**: Validaciones tempranas evitan errores en tiempo de ejecución
-7. **Configuración por Defecto**: Los Value Objects pueden configurarse con valores por defecto desde la configuración
-
-### Ejecución de Tests
-
-```bash
-# Ejecutar todos los tests
-python -m pytest api/tests/ -v
-
-# Ejecutar tests específicos
-python -m pytest api/tests/test_cantidad.py -v
-python -m pytest api/tests/test_precio.py -v
-python -m pytest api/tests/test_base_value_object.py -v
-python -m pytest api/tests/test_object_mothers.py -v
-python -m pytest api/tests/test_value_objects.py -v
-python -m pytest api/tests/test_eventos.py -v
-python -m pytest api/tests/test_resultados.py -v
-python -m pytest api/tests/test_fel.py -v
-```
-
-## 🔌 API Documentation
-
-### Endpoints Disponibles
-
-#### GET `/health`
-Endpoint de health check para verificar que la API está funcionando.
-
-**Response:**
-```json
-{
-  "status": "ok",
-  "message": "API de Simulación de Inventario funcionando correctamente"
-}
-```
-
-#### POST `/simular`
-Endpoint principal que ejecuta la simulación de políticas de inventario.
-
-### Modelo SimulacionRequest
+#### Ejemplo de uso del EventDispatcher
 
 ```python
-class SimulacionRequest(BaseModel):
-    inventario_inicial: Optional[int] = None
-    plazo_entrega_min: Optional[int] = None
-    plazo_entrega_max: Optional[int] = None
-    dias_simulacion: Optional[int] = None
-    anios_simulacion: Optional[int] = None
-    costo_almacenar: Optional[float] = None
-    costo_faltante: Optional[float] = None
-    costo_pedido_pequenio: Optional[float] = None
-    costo_pedido_grande: Optional[float] = None
-    precio_venta: Optional[float] = None
-    politicas_abastecimiento: Optional[List[PoliticaAbastecimiento]] = None
-    demanda: Optional[int] = None
+dispatcher = EventDispatcher([
+    DemandaEventHandler(),
+    LlegadaPedidoEventHandler()
+])
+dispatcher.dispatch(evento, context)
 ```
 
-#### Parámetros del Modelo
+---
 
-| Parámetro | Tipo | Default | Descripción |
-|-----------|------|---------|-------------|
-| `inventario_inicial` | int | Config | Inventario inicial en unidades |
-| `plazo_entrega_min` | int | Config | Plazo mínimo de entrega en días |
-| `plazo_entrega_max` | int | Config | Plazo máximo de entrega en días |
-| `dias_simulacion` | int | Config | Días por año de simulación |
-| `anios_simulacion` | int | Config | Número de años a simular |
-| `costo_almacenar` | float | Config | Costo por unidad por día de almacenamiento |
-| `costo_faltante` | float | Config | Costo por unidad de faltante |
-| `costo_pedido_pequenio` | float | Config | Costo por unidad para pedidos < 300 |
-| `costo_pedido_grande` | float | Config | Costo por unidad para pedidos ≥ 300 |
-| `precio_venta` | float | Config | Precio de venta por unidad |
-| `politicas_abastecimiento` | List | Config | Lista de políticas (r, Q) a simular |
-| `demanda` | int | Config | Demanda media diaria (distribución Poisson) |
+El resto de la documentación sobre Value Objects, Object Mothers, ResultadosPolitica y FEL sigue siendo válida y complementa la arquitectura orientada a objetos.
 
-#### Modelo PoliticaAbastecimiento
-
-```python
-class PoliticaAbastecimiento(BaseModel):
-    punto_reorden: Optional[int] = None  # Nivel de reposición (r)
-    cantidad_pedido: int                 # Tamaño del lote (Q)
-```
-
-### Ejemplo de Request
-
-```json
-{
-  "inventario_inicial": 720,
-  "dias_simulacion": 365,
-  "anios_simulacion": 5,
-  "politicas_abastecimiento": [
-    {"punto_reorden": 40, "cantidad_pedido": 140},
-    {"punto_reorden": 30, "cantidad_pedido": 140},
-    {"punto_reorden": 60, "cantidad_pedido": 140}
-  ],
-  "demanda": 200
-}
-```
-
-### Ejemplo de Response
-
-```json
-{
-  "resultados": [
-    {
-      "r": 40,
-      "Q": 140,
-      "ingresos": 91250000.0,
-      "costo_alm": 5400000.0,
-      "costo_faltante": 190000.0,
-      "costo_pedidos": 4200000.0,
-      "ganancia": 81550000.0
-    },
-    {
-      "r": 30,
-      "Q": 140,
-      "ingresos": 91250000.0,
-      "costo_alm": 5400000.0,
-      "costo_faltante": 285000.0,
-      "costo_pedidos": 4200000.0,
-      "ganancia": 81365000.0
-    }
-  ]
-}
-```
-
-## 🖥️ Frontend
-
-### Características
-
-- **Formulario Intuitivo**: Interfaz fácil de usar con tooltips explicativos
-- **Gestión Dinámica de Políticas**: Agregar/eliminar políticas de abastecimiento
-- **Validación de Datos**: Validación en tiempo real de todos los parámetros
-- **Visualización de Resultados**: Tabla comparativa y gráficos interactivos
-- **Responsive Design**: Compatible con dispositivos móviles y desktop
-
-### Tecnologías Utilizadas
-
-- **HTML5**: Estructura semántica
-- **CSS3**: Estilos y animaciones
-- **JavaScript ES6+**: Lógica de la aplicación
-- **Bootstrap 5**: Framework CSS responsive
-- **Chart.js**: Gráficos interactivos
-- **Bootstrap Icons**: Iconografía
-
-### Uso del Frontend
-
-#### 1. Configurar Parámetros
-- **Inventario**: Establecer inventario inicial y demanda media
-- **Tiempo**: Definir días por año y años de simulación
-- **Entrega**: Configurar plazos mínimo y máximo de entrega
-- **Costos**: Establecer todos los costos del sistema
-- **Precios**: Definir precio de venta por unidad
-
-#### 2. Agregar Políticas
-- Hacer clic en "Agregar Política" para crear nuevas políticas
-- Configurar punto de reorden (r) y cantidad de pedido (Q)
-- Eliminar políticas innecesarias con el botón X
-
-#### 3. Ejecutar Simulación
-- Hacer clic en "Ejecutar Simulación"
-- Esperar a que se procesen los resultados
-- Revisar la tabla comparativa y los gráficos
-
-#### 4. Analizar Resultados
-- **Tabla**: Comparar métricas entre políticas
-- **Gráfico Financiero**: Visualizar ingresos, costos y ganancias
-- **Gráfico de Costos**: Analizar desglose de costos por tipo
-
-### Configuración de la API
-
-La aplicación está configurada para conectarse a la API en `http://localhost:8000`. Para cambiar la URL de la API, modificar la constante `API_BASE_URL` en `frontend/src/js/config.js`.
-
-## 🧮 Lógica de Simulación
-
-### Arquitectura de la Simulación
-
-La simulación utiliza el **método de eventos discretos** para modelar el sistema de inventario. Los eventos principales son:
-- **Eventos de Demanda**: Generación de demanda diaria con distribución Poisson
-- **Eventos de Llegada de Pedidos**: Recepción de pedidos según plazos de entrega
-
-### Flujo de Ejecución
-
-1. **Punto de Entrada**: La API recibe una petición POST en `/simular` con los parámetros de simulación
-2. **Validación de Dominio**: El controlador crea ValueObjects que validan las reglas de negocio
-3. **Procesamiento**: El controlador itera sobre las políticas y llama a `simular_politica` para cada una
-4. **Simulación**: Cada política se simula de forma independiente usando ValueObjects validados
-5. **Resultados**: Se retornan los resultados de todas las políticas simuladas
-
-### Método Principal: `simular_politica(politica, dias_simulacion, configuracion)`
-
-#### Parámetros de Entrada
-- `politica` (PoliticaInventario): Política de inventario (r, Q) validada
-- `dias_simulacion` (int): Período total de simulación en días
-- `configuracion` (ConfiguracionSimulacion): Configuración completa validada
-
-#### Flujo de Ejecución
-
-1. **Inicialización con ValueObjects:**
-   ```python
-   # Obtener valores validados desde los ValueObjects
-   inventario = configuracion.get_inventario_inicial()
-   precio_venta = configuracion.get_precio_venta()
-   costo_almacenar = configuracion.get_costo_almacenar()
-   costo_por_faltante = configuracion.get_costo_faltante()
-   demanda_media = configuracion.get_demanda_media()
-   plazo_entrega_min = configuracion.get_plazo_entrega_min()
-   plazo_entrega_max = configuracion.get_plazo_entrega_max()
-   
-   # Obtener valores de la política
-   r = politica.get_punto_reorden()
-   Q = politica.get_cantidad_pedido()
-   
-   # Crear primer evento de demanda
-   lista_eventos = [Evento("demanda", 0, generar_demanda(demanda_media))]
-   ```
-
-2. **Bucle Principal de Eventos:**
-   ```python
-   while lista_eventos:
-       evento_actual = lista_eventos.pop(0)  # Procesar próximo evento
-       
-       if dia >= dias_simulacion: 
-           break  # Finalizar simulación
-   ```
-
-3. **Procesamiento de Eventos:**
-   - **Evento "demanda"**: Calcular ventas y faltantes, actualizar inventario
-   - **Evento "llegada_pedido"**: Recibir pedido y actualizar inventario
-
-4. **Lógica de Reposición con ValueObjects:**
-   ```python
-   if inventario < r:  # Si inventario cae bajo punto de reorden
-       nuevoPedido = Evento("llegada_pedido", dia + generar_tiempo_entrega(plazo_entrega_min, plazo_entrega_max), Q)
-       costo_pedidos += Q * configuracion.calcular_costo_unitario_pedido(Q)
-   ```
-
-5. **Cálculo de Costos Diarios:**
-   ```python
-   costo_almacenamiento += inventario * costo_almacenar  # Costo de almacenamiento diario
-   ```
-
-6. **Generación de Nuevos Eventos:**
-   ```python
-   if not existen_eventos_pendientes(lista_eventos, dia + 1):
-       nueva_demanda = Evento("demanda", dia + 1, generar_demanda(demanda_media))
-       lista_eventos.append(nueva_demanda)
-   ```
-
-#### Funciones de Soporte
-
-- **`generar_demanda(demanda_media)`**: Genera demanda aleatoria con distribución Poisson
-- **`generar_tiempo_entrega(plazo_min, plazo_max)`**: Genera plazo de entrega uniforme
-- **`calcular_resultados_diarios(demanda, inventario)`**: Calcula ventas y faltantes
-- **`existen_eventos_pendientes(lista_eventos, dia)`**: Verifica eventos futuros
-
-#### Cálculo de Resultados
-
-```python
-# Costos totales
-costo_total = costo_almacenamiento + costo_total_faltante + costo_pedidos
-
-# Ganancia neta
-ganancia = ingresos - costo_total
-
-return {
-    "r": r,
-    "Q": Q,
-    "ingresos": ingresos,
-    "costo_alm": costo_almacenamiento,
-    "costo_faltante": costo_total_faltante,
-    "costo_pedidos": costo_pedidos,
-    "ganancia": ganancia,
-}
-```
-
-### Características de la Simulación
-
-- **Simulación Discreta**: Basada en eventos, no en intervalos de tiempo fijos
-- **Política (r, Q)**: Sistema de revisión continua con punto de reorden
-- **Demanda Estocástica**: Distribución Poisson para modelar variabilidad
-- **Plazos de Entrega Variables**: Distribución uniforme entre mínimo y máximo
-- **Costos Dinámicos**: Diferentes costos según tamaño de pedido
-- **Múltiples Políticas**: Comparación simultánea de diferentes estrategias
-- **Validaciones de Dominio**: Todos los parámetros son validados por ValueObjects antes de la simulación
-- **Desacoplamiento**: El módulo de simulación recibe objetos validados en lugar de tipos primitivos
-
-### Beneficios de la Refactorización en la Simulación
-
-1. **Validaciones Tempranas**: Los ValueObjects validan los parámetros antes de iniciar la simulación
-2. **Código Más Limpio**: La función `simular_politica` recibe objetos con significado semántico
-3. **Prevención de Errores**: Imposible pasar parámetros inválidos a la simulación
-4. **Mejor Testing**: Los ValueObjects pueden ser testeados independientemente
-5. **Documentación Viva**: Las reglas de negocio están codificadas en los ValueObjects
+Para más detalles, consulta la sección de tests y los ejemplos de código en `api/tests/`.
 
 ## 📊 Diagrama de Flujo
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from ..value_objects import PoliticaInventario, ConfiguracionSimulacion
 
 @dataclass
 class ResultadosPolitica:
@@ -14,6 +15,24 @@ class ResultadosPolitica:
     costo_total_faltante: float = 0.0
     costo_pedidos: float = 0.0
     ingresos: float = 0.0
+    
+    @classmethod
+    def from_politica_and_config(cls, politica: PoliticaInventario, configuracion: ConfiguracionSimulacion) -> 'ResultadosPolitica':
+        """
+        Constructor de clase que crea una instancia de ResultadosPolitica a partir de una política y configuración.
+        
+        Args:
+            politica: Política de inventario (r, Q)
+            configuracion: Configuración de la simulación
+            
+        Returns:
+            ResultadosPolitica: Nueva instancia inicializada con los parámetros de la política y el inventario inicial
+        """
+        return cls(
+            r=politica.get_punto_reorden(),
+            Q=politica.get_cantidad_pedido(),
+            inventario=configuracion.get_inventario_inicial()
+        )
     
     def agregar_costo_almacenamiento(self, costo: float) -> None:
         """Agrega un costo de almacenamiento al total acumulado."""

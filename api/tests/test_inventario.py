@@ -2,7 +2,7 @@ import pytest
 from api.src.application.inventario import SimulacionInventario
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
 from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
-from api.src.dependency_injection import get_event_bus
+from api.src.infra.dependency_injection import get_event_bus
 from api.src.application.handlers.demanda_handler import DemandaEventHandler
 from api.src.application.handlers.llegada_pedido_handler import LlegadaPedidoEventHandler
 

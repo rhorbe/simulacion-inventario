@@ -1,10 +1,9 @@
 import pytest
-from api.src.domain.bus.command_bus import CommandBus
 from api.src.infra.bus.in_memory_command_bus import InMemoryCommandBus
 from api.src.application.commands.simular_command import SimularCommand
 from api.src.application.handlers.simular_command_handler import SimularCommandHandler
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
-from api.src.dependency_injection import get_event_bus
+from api.src.infra.dependency_injection import get_event_bus
 from api.src.application.handlers.demanda_handler import DemandaEventHandler
 from api.src.application.handlers.llegada_pedido_handler import LlegadaPedidoEventHandler
 from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido

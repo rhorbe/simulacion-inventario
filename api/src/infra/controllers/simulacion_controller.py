@@ -6,7 +6,7 @@ from api.src.application.commands.simular_command import SimularCommand
 from api.src.domain.repository.config import Config
 from api.src.domain.dto.simulacion_request import SimulacionRequest
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
-from api.src.dependency_injection import get_config, get_command_bus
+from api.src.infra.dependency_injection import get_config, get_command_bus
 
 router = APIRouter()
 

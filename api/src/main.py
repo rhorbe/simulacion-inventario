@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.src.infra.controllers import health_controller
 from api.src.infra.controllers import simulacion_controller
-from api.src.dependency_injection import get_command_bus, get_event_bus
+from api.src.infra.dependency_injection import get_command_bus, get_event_bus
 from api.src.application.handlers.simular_command_handler import SimularCommandHandler
 from api.src.application.commands.simular_command import SimularCommand
 from api.src.application.handlers.demanda_handler import DemandaEventHandler

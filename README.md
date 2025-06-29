@@ -10,6 +10,7 @@ Sistema completo de simulación de políticas de inventario basado en el modelo 
 - [Patrón CQRS](#patrón-cqrs)
 - [Sistema de Eventos](#sistema-de-eventos)
 - [Inyección de Dependencias](#inyección-de-dependencias)
+- [Sistema de Middlewares en los Buses](#sistema-de-middlewares-en-los-buses)
 - [API Documentation](#api-documentation)
 - [Frontend](#frontend)
 - [Lógica de Simulación](#lógica-de-simulación)
@@ -510,6 +511,67 @@ event_bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
 # Registrar handler del CommandBus con EventBus como dependencia
 command_bus.register_handler(SimularCommand, SimularCommandHandler(event_bus))
 ```
+
+---
+
+### Sistema de Middlewares en los Buses
+
+Los buses (`CommandBus` y `EventBus`) soportan una cadena de middlewares que permite ejecutar lógica adicional antes y/o después de cada comando o evento. Esto es útil para logging, métricas, validación, manejo de errores, etc.
+
+#### ¿Cómo funciona?
+
+- Cada bus mantiene una lista de middlewares que se ejecutan en orden antes de llegar al handler final.
+- Los middlewares implementan la interfaz `Middleware` y reciben un contexto y una función `next_middleware` para continuar la cadena.
+- El contexto (`MiddlewareContext`) permite compartir información entre middlewares y el handler.
+- Si no hay middlewares, el comando/evento se ejecuta directamente en el handler.
+
+#### Ejemplo de registro de middlewares
+
+```python
+from api.src.domain.bus.middleware import Middleware
+
+class LoggingMiddleware(Middleware):
+    async def process(self, context, next_middleware):
+        print(f"Ejecutando: {context.command_or_event}")
+        result = await next_middleware(context)
+        print(f"Finalizado: {context.command_or_event}")
+        return result
+
+# Crear el bus
+command_bus = InMemoryCommandBus()
+
+# Agregar el middleware
+command_bus.add_middleware(LoggingMiddleware())
+
+# Registrar handlers como siempre
+command_bus.register_handler(SimularCommand, SimularCommandHandler(event_bus))
+```
+
+#### Orden de ejecución
+
+1. El comando/evento entra al primer middleware.
+2. Cada middleware puede ejecutar lógica antes y después de llamar a `await next_middleware(context)`.
+3. Al final de la cadena, se ejecuta el handler correspondiente.
+
+#### ¿Dónde agregar los middlewares?
+
+- Los middlewares deben agregarse al bus antes de registrar los handlers y antes de ejecutar comandos/eventos.
+- Se recomienda hacerlo en la inicialización de la aplicación (`main.py`).
+
+#### Ejemplo de MiddlewareContext
+
+```python
+from api.src.domain.bus.middleware import MiddlewareContext
+
+context = MiddlewareContext(command_or_event=mi_comando)
+context.metadata["usuario"] = "admin"
+```
+
+#### Tests
+
+El archivo `api/tests/test_middleware_chain.py` contiene ejemplos y tests unitarios que verifican el funcionamiento de la cadena de middlewares.
+
+---
 
 ### Value Objects
 

@@ -332,9 +332,8 @@ simulacion-inventario/
   - **`politica_abastecimiento.py`**: DTO para representar políticas de abastecimiento
 - **`models/`**: Modelos de dominio
   - **`evento.py`**: Define la jerarquía de eventos para la simulación discreta de eventos
-  - **`resultados_politica.py`**: Define la clase ResultadosPolitica para encapsular los resultados de la simulación
+  - **`simulation_context.py`**: Contexto de simulación unificado que encapsula resultados, configuración y política
   - **`fel.py`**: Define la clase FEL (Future Event List) para gestionar eventos futuros en la simulación
-  - **`simulation_context.py`**: Contexto de simulación que encapsula resultados y configuración
 - **`value_objects/`**: Value Objects del dominio con validaciones de negocio
   - **`cantidad.py`**: Value Object para cantidades con validación de no negatividad
   - **`precio.py`**: Value Object para precios con validación de no negatividad
@@ -361,7 +360,7 @@ simulacion-inventario/
 - **`test_object_mothers.py`**: Tests para los Object Mothers (DemandaMother y TiempoEntregaMother)
 - **`test_value_objects_with_defaults.py`**: Tests para Value Objects con valores por defecto
 - **`test_eventos.py`**: Tests para la jerarquía de eventos (EventoBase, EventoDemanda, EventoLlegadaPedido)
-- **`test_resultados.py`**: Tests para la clase ResultadosPolitica
+- **`test_resultados.py`**: Tests para la clase SimulationContext (anteriormente ResultadosPolitica)
 - **`test_fel.py`**: Tests para la clase FEL (Future Event List)
 - **`test_command_bus.py`**: Tests para el CommandBus y handlers de comandos
 - **`test_event_bus.py`**: Tests para el EventBus y handlers de eventos
@@ -464,17 +463,21 @@ class EventBus(ABC):
 ```python
 class DemandaEventHandler(EventHandler[EventoDemanda]):
     def handle(self, evento: EventoDemanda, context: SimulationContext) -> None:
-        d = evento.get_cantidad()
-        inventario_actual = context.resultados.obtener_inventario()
-        ventas = min(d, inventario_actual)
-        faltante = max(0, d - inventario_actual)
-        context.resultados.actualizar_inventario(-ventas)
-        context.resultados.agregar_ingreso(ventas * context.configuracion.get_precio_venta())
-        context.resultados.agregar_costo_faltante(faltante * context.configuracion.get_costo_faltante())
+        cantidad = evento.get_cantidad()
+        inventario_actual = context.obtener_inventario()
+        precio_venta = context.configuracion.get_precio_venta()
+        if inventario_actual >= cantidad:
+            context.actualizar_inventario(-cantidad)
+            context.agregar_ingreso(cantidad * precio_venta)
+        else:
+            context.agregar_ingreso(inventario_actual * precio_venta)
+            context.agregar_costo_faltante((cantidad - inventario_actual) * context.configuracion.get_costo_faltante())
+            context.establecer_inventario(0)
 
 class LlegadaPedidoEventHandler(EventHandler[EventoLlegadaPedido]):
     def handle(self, evento: EventoLlegadaPedido, context: SimulationContext) -> None:
-        context.resultados.actualizar_inventario(evento.get_cantidad())
+        cantidad = evento.get_cantidad()
+        context.actualizar_inventario(cantidad)
 ```
 
 ### Inyección de Dependencias
@@ -839,13 +842,16 @@ class DemandaEventHandler:
     def can_handle(self, evento):
         return evento.__class__.__name__ == 'EventoDemanda'
     def handle(self, evento, context):
-        d = evento.get_cantidad()
-        inventario_actual = context.resultados.obtener_inventario()
-        ventas = min(d, inventario_actual)
-        faltante = max(0, d - inventario_actual)
-        context.resultados.actualizar_inventario(-ventas)
-        context.resultados.agregar_ingreso(ventas * context.configuracion.get_precio_venta())
-        context.resultados.agregar_costo_faltante(faltante * context.configuracion.get_costo_faltante())
+        cantidad = evento.get_cantidad()
+        inventario_actual = context.obtener_inventario()
+        precio_venta = context.configuracion.get_precio_venta()
+        if inventario_actual >= cantidad:
+            context.actualizar_inventario(-cantidad)
+            context.agregar_ingreso(cantidad * precio_venta)
+        else:
+            context.agregar_ingreso(inventario_actual * precio_venta)
+            context.agregar_costo_faltante((cantidad - inventario_actual) * context.configuracion.get_costo_faltante())
+            context.establecer_inventario(0)
 ```
 
 #### Ejemplo de uso del EventBus
@@ -857,9 +863,90 @@ event_bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
 event_bus.dispatch(evento, context)
 ```
 
+### SimulationContext Unificado
+
+El sistema utiliza una clase `SimulationContext` unificada que combina la funcionalidad anterior de `ResultadosPolitica` y `SimulationContext`. Esta clase encapsula:
+
+- **Atributos de la política**: `r` (punto de reorden), `Q` (cantidad de pedido), `inventario`
+- **Atributos de costos e ingresos**: `costo_almacenamiento`, `costo_total_faltante`, `costo_pedidos`, `ingresos`
+- **Referencias**: `politica`, `configuracion`
+
+#### Características de SimulationContext
+
+```python
+@dataclass
+class SimulationContext:
+    # Atributos de la política
+    r: int
+    Q: int
+    inventario: int
+    
+    # Atributos de costos e ingresos
+    costo_almacenamiento: float = 0.0
+    costo_total_faltante: float = 0.0
+    costo_pedidos: float = 0.0
+    ingresos: float = 0.0
+    
+    # Referencias a la política y configuración
+    politica: PoliticaInventario = None
+    configuracion: ConfiguracionSimulacion = None
+    
+    @classmethod
+    def from_politica_and_config(cls, politica: PoliticaInventario, configuracion: ConfiguracionSimulacion) -> 'SimulationContext':
+        return cls(
+            r=politica.get_punto_reorden(),
+            Q=politica.get_cantidad_pedido(),
+            inventario=configuracion.get_inventario_inicial(),
+            politica=politica,
+            configuracion=configuracion
+        )
+    
+    def agregar_costo_almacenamiento(self, costo: float) -> None:
+        self.costo_almacenamiento += costo
+    
+    def agregar_costo_faltante(self, costo: float) -> None:
+        self.costo_total_faltante += costo
+    
+    def agregar_costo_pedido(self, costo: float) -> None:
+        self.costo_pedidos += costo
+    
+    def agregar_ingreso(self, ingreso: float) -> None:
+        self.ingresos += ingreso
+    
+    def actualizar_inventario(self, cantidad: int) -> None:
+        self.inventario += cantidad
+    
+    def establecer_inventario(self, cantidad: int) -> None:
+        self.inventario = cantidad
+    
+    def obtener_inventario(self) -> int:
+        return self.inventario
+    
+    def calcular_ganancia(self) -> float:
+        costo_total = self.costo_almacenamiento + self.costo_total_faltante + self.costo_pedidos
+        return self.ingresos - costo_total
+    
+    def to_dict(self) -> dict:
+        return {
+            "r": self.r,
+            "Q": self.Q,
+            "ingresos": self.ingresos,
+            "costo_alm": self.costo_almacenamiento,
+            "costo_faltante": self.costo_total_faltante,
+            "costo_pedidos": self.costo_pedidos,
+            "ganancia": self.calcular_ganancia(),
+        }
+```
+
+**Beneficios de la unificación:**
+- **Simplicidad**: Una sola clase maneja tanto el contexto como los resultados
+- **Cohesión**: Todos los datos relacionados están en un solo lugar
+- **Acceso directo**: No hay necesidad de acceder a `context.resultados`
+- **Mantenibilidad**: Menos clases para mantener y entender
+
 ---
 
-El resto de la documentación sobre Value Objects, Object Mothers, ResultadosPolitica y FEL sigue siendo válida y complementa la arquitectura orientada a objetos.
+El resto de la documentación sobre Value Objects, Object Mothers y FEL sigue siendo válida y complementa la arquitectura orientada a objetos.
 
 Para más detalles, consulta la sección de tests y los ejemplos de código en `api/tests/`.
 

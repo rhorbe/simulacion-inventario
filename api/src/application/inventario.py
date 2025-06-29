@@ -1,9 +1,7 @@
 from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido, Evento
 from api.src.domain.models.resultados_politica import ResultadosPolitica
 from api.src.domain.models.fel import FEL
-from api.src.domain.models.event_dispatcher import EventDispatcher
-from api.src.application.handlers import DemandaEventHandler
-from api.src.application.handlers import LlegadaPedidoEventHandler
+from api.src.domain.bus.event_bus import EventBus
 from api.src.domain.models.simulation_context import SimulationContext
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
 from api.src.domain.object_mothers import DemandaMother, TiempoEntregaMother
@@ -12,12 +10,12 @@ from api.src.domain.object_mothers import DemandaMother, TiempoEntregaMother
 class SimulacionInventario:
     """Clase que encapsula la lógica de simulación de inventario"""
     
-    def __init__(self, politica: PoliticaInventario, configuracion: ConfiguracionSimulacion):
+    def __init__(self, politica: PoliticaInventario, configuracion: ConfiguracionSimulacion, event_bus: EventBus):
         self.politica = politica
         self.configuracion = configuracion
+        self.event_bus = event_bus
         self.fel = self._inicializar_fel()
         self.context = self._crear_contexto()
-        self.event_dispatcher = self._crear_dispatcher()
     
     def _inicializar_fel(self) -> FEL:
         """Inicializa la FEL con el evento de demanda inicial"""
@@ -32,13 +30,6 @@ class SimulacionInventario:
         """Crea el contexto de simulación"""
         resultados = ResultadosPolitica.from_politica_and_config(self.politica, self.configuracion)
         return SimulationContext(resultados=resultados, configuracion=self.configuracion)
-    
-    def _crear_dispatcher(self) -> EventDispatcher:
-        """Crea el dispatcher de eventos"""
-        return EventDispatcher([
-            DemandaEventHandler(),
-            LlegadaPedidoEventHandler()
-        ])
     
     def ejecutar(self) -> dict:
         """Ejecuta la simulación completa"""
@@ -56,8 +47,8 @@ class SimulacionInventario:
         return self.context.resultados.to_dict()
     
     def _procesar_evento(self, evento: Evento) -> None:
-        """Procesa un evento usando el dispatcher"""
-        self.event_dispatcher.dispatch(evento, self.context)
+        """Procesa un evento usando el event bus"""
+        self.event_bus.dispatch(evento, self.context)
     
     def _verificar_punto_reorden(self, evento: Evento) -> None:
         """Verifica si se debe hacer un pedido"""

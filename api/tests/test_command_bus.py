@@ -1,8 +1,21 @@
 import pytest
-from api.src.application.command_bus import CommandBus
+from api.src.domain.bus.command_bus import CommandBus
+from api.src.infra.bus.in_memory_command_bus import InMemoryCommandBus
 from api.src.application.commands.simular_command import SimularCommand
 from api.src.application.handlers.simular_command_handler import SimularCommandHandler
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
+from api.src.dependency_injection import get_event_bus
+from api.src.application.handlers.demanda_handler import DemandaEventHandler
+from api.src.application.handlers.llegada_pedido_handler import LlegadaPedidoEventHandler
+from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
+
+
+def get_configured_event_bus():
+    """Helper para crear un EventBus configurado con handlers registrados"""
+    event_bus = get_event_bus()
+    event_bus.register_handler(EventoDemanda, DemandaEventHandler())
+    event_bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
+    return event_bus
 
 
 class TestCommandBus:
@@ -10,8 +23,9 @@ class TestCommandBus:
     
     def test_register_handler(self):
         """Test que verifica que se puede registrar un handler"""
-        bus = CommandBus()
-        handler = SimularCommandHandler()
+        bus = InMemoryCommandBus()
+        event_bus = get_configured_event_bus()
+        handler = SimularCommandHandler(event_bus)
         
         bus.register_handler(SimularCommand, handler)
         
@@ -21,8 +35,9 @@ class TestCommandBus:
     
     def test_execute_command_with_registered_handler(self):
         """Test que verifica que se puede ejecutar un comando con handler registrado"""
-        bus = CommandBus()
-        handler = SimularCommandHandler()
+        bus = InMemoryCommandBus()
+        event_bus = get_configured_event_bus()
+        handler = SimularCommandHandler(event_bus)
         bus.register_handler(SimularCommand, handler)
         
         # Crear comando de prueba
@@ -53,7 +68,7 @@ class TestCommandBus:
     
     def test_execute_command_without_handler_raises_error(self):
         """Test que verifica que se lanza error si no hay handler registrado"""
-        bus = CommandBus()
+        bus = InMemoryCommandBus()
         
         # Crear comando sin registrar handler
         politica = PoliticaInventario.from_valores(punto_reorden=10, cantidad_pedido=50)
@@ -77,8 +92,9 @@ class TestCommandBus:
     
     def test_execute_multiple_policies(self):
         """Test que verifica que se pueden ejecutar múltiples políticas"""
-        bus = CommandBus()
-        handler = SimularCommandHandler()
+        bus = InMemoryCommandBus()
+        event_bus = get_configured_event_bus()
+        handler = SimularCommandHandler(event_bus)
         bus.register_handler(SimularCommand, handler)
         
         # Crear múltiples políticas

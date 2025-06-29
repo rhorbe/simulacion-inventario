@@ -1,13 +1,13 @@
 import pytest
-from src.application.handlers.demanda_handler import DemandaEventHandler
-from src.application.handlers.llegada_pedido_handler import LlegadaPedidoEventHandler
-from src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
-from src.domain.models.resultados_politica import ResultadosPolitica
-from src.domain.models.simulation_context import SimulationContext
-from src.domain.value_objects.configuracion_simulacion import ConfiguracionSimulacion
-from src.domain.value_objects.precio_venta import PrecioVenta
-from src.domain.value_objects.costo_faltante import CostoFaltante
-from src.domain.value_objects.precio import Precio
+from api.src.application.handlers.demanda_handler import DemandaEventHandler
+from api.src.application.handlers.llegada_pedido_handler import LlegadaPedidoEventHandler
+from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
+from api.src.domain.models.resultados_politica import ResultadosPolitica
+from api.src.domain.models.simulation_context import SimulationContext
+from api.src.domain.value_objects.configuracion_simulacion import ConfiguracionSimulacion
+from api.src.domain.value_objects.precio_venta import PrecioVenta
+from api.src.domain.value_objects.costo_faltante import CostoFaltante
+from api.src.domain.value_objects.precio import Precio
 
 # Valores dummy para los parámetros requeridos
 PARAMS = dict(

@@ -1,12 +1,15 @@
 # Simulación de Inventario - API y Frontend
 
-Sistema completo de simulación de políticas de inventario basado en el modelo (r, Q) implementado como API REST con FastAPI y frontend web interactivo.
+Sistema completo de simulación de políticas de inventario basado en el modelo (r, Q) implementado como API REST con FastAPI y frontend web interactivo, siguiendo principios de Domain-Driven Design (DDD) y arquitectura limpia.
 
 ## 📋 Tabla de Contenidos
 
 - [Get Started](#get-started)
 - [Estructura del Proyecto](#estructura-del-proyecto)
 - [Arquitectura de Dominio](#arquitectura-de-dominio)
+- [Patrón CQRS](#patrón-cqrs)
+- [Sistema de Eventos](#sistema-de-eventos)
+- [Inyección de Dependencias](#inyección-de-dependencias)
 - [API Documentation](#api-documentation)
 - [Frontend](#frontend)
 - [Lógica de Simulación](#lógica-de-simulación)
@@ -32,7 +35,7 @@ Sistema completo de simulación de políticas de inventario basado en el modelo 
 
 2. **Ejecutar la API:**
    ```bash
-   uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+   uvicorn api.src.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
 3. **Verificar la API:**
@@ -66,13 +69,16 @@ Sistema completo de simulación de políticas de inventario basado en el modelo 
 #### Backend
 ```bash
 # Ejecutar en modo desarrollo (con auto-reload)
-uvicorn api.main:app --reload
+uvicorn api.src.main:app --reload
 
 # Ejecutar en modo producción
-uvicorn api.main:app --host 0.0.0.0 --port 8000
+uvicorn api.src.main:app --host 0.0.0.0 --port 8000
 
 # Ejecutar con logs detallados
-uvicorn api.main:app --log-level debug
+uvicorn api.src.main:app --log-level debug
+
+# Ejecutar tests
+python -m pytest api/tests/ -v
 ```
 
 #### Frontend
@@ -105,7 +111,7 @@ npm run build
                "request": "launch",
                "module": "uvicorn",
                "args": [
-                   "api.main:app",
+                   "api.src.main:app",
                    "--reload",
                    "--host",
                    "0.0.0.0",
@@ -122,7 +128,7 @@ npm run build
                "name": "FastAPI Debug (Simple)",
                "type": "python",
                "request": "launch",
-               "program": "${workspaceFolder}/api/main.py",
+               "program": "${workspaceFolder}/api/src/main.py",
                "console": "integratedTerminal",
                "cwd": "${workspaceFolder}",
                "env": {
@@ -134,7 +140,7 @@ npm run build
    ```
 
 2. **Configurar breakpoints:**
-   - Abrir `api/main.py` o `api/application/inventario.py`
+   - Abrir `api/src/main.py` o `api/src/application/inventario.py`
    - Hacer clic en el margen izquierdo para establecer breakpoints
    - Los breakpoints se marcan con puntos rojos
 
@@ -164,7 +170,7 @@ npm run build
      - **Name**: `FastAPI Debug`
      - **Script path**: Dejar vacío
      - **Module name**: `uvicorn`
-     - **Parameters**: `api.main:app --reload --host 0.0.0.0 --port 8000`
+     - **Parameters**: `api.src.main:app --reload --host 0.0.0.0 --port 8000`
      - **Working directory**: Seleccionar la carpeta del proyecto
      - **Python interpreter**: Seleccionar el intérprete correcto
 
@@ -205,10 +211,10 @@ FASTAPI_ENV=development
 ```
 
 **Puntos de debug recomendados:**
-- `api/main.py`: Línea 30 (función `simular`)
-- `api/application/inventario.py`: Línea 15 (clase `SimulacionInventario`)
-- `api/application/inventario.py`: Línea 45 (método `ejecutar`)
-- `api/infra/repository/yml_config_repository.py`: Línea 25 (carga de configuración)
+- `api/src/main.py`: Línea 30 (inicialización de buses)
+- `api/src/application/inventario.py`: Línea 15 (clase `SimulacionInventario`)
+- `api/src/application/inventario.py`: Línea 45 (método `ejecutar`)
+- `api/src/infra/repository/yml_config_repository.py`: Línea 25 (carga de configuración)
 
 ## 📁 Estructura del Proyecto
 
@@ -217,7 +223,9 @@ simulacion-inventario/
 ├── api/                    # Backend - API y lógica de simulación
 │   ├── src/               # Código fuente del backend
 │   │   ├── domain/        # Capa de dominio - entidades y lógica de negocio
+│   │   │   ├── bus/           # Interfaces de buses (CommandBus, EventBus)
 │   │   │   ├── dto/           # Data Transfer Objects
+│   │   │   ├── handlers/      # Interfaces de handlers
 │   │   │   ├── models/        # Modelos de dominio
 │   │   │   ├── value_objects/ # Value Objects del dominio
 │   │   │   ├── object_mothers/ # Object Mothers para generación de valores aleatorios
@@ -225,11 +233,21 @@ simulacion-inventario/
 │   │   │   ├── repository/    # Interfaces de repositorio
 │   │   │   └── __init__.py
 │   │   ├── application/   # Capa de aplicación - casos de uso
+│   │   │   ├── commands/      # Comandos CQRS
+│   │   │   ├── handlers/      # Handlers de comandos y eventos
+│   │   │   ├── inventario.py  # Clase principal de simulación
+│   │   │   └── __init__.py
 │   │   ├── infra/         # Capa de infraestructura - interfaces externas
+│   │   │   ├── bus/           # Implementaciones de buses
 │   │   │   ├── controllers/   # Controladores de la API
 │   │   │   ├── repository/    # Implementaciones de repositorios
 │   │   │   └── __init__.py
-│   │   ├── dependency_injection.py  # Configuración de inyección de dependencias
+│   │   ├── dependency_injection/ # Configuración de inyección de dependencias
+│   │   │   ├── config_factory.py
+│   │   │   ├── command_bus_factory.py
+│   │   │   ├── event_bus_factory.py
+│   │   │   ├── simulacion_factory.py
+│   │   │   └── __init__.py
 │   │   ├── main.py            # Punto de entrada de la aplicación FastAPI
 │   │   └── __init__.py
 │   ├── tests/             # Tests unitarios
@@ -240,7 +258,14 @@ simulacion-inventario/
 │   │   ├── test_costo_pedido.py
 │   │   ├── test_politica_inventario.py
 │   │   ├── test_configuracion_simulacion.py
-│   │   └── test_object_mothers.py
+│   │   ├── test_object_mothers.py
+│   │   ├── test_command_bus.py
+│   │   ├── test_event_bus.py
+│   │   ├── test_event_handlers.py
+│   │   ├── test_eventos.py
+│   │   ├── test_fel.py
+│   │   ├── test_inventario.py
+│   │   └── test_resultados.py
 │   ├── requirements.txt   # Dependencias del proyecto
 │   └── Dockerfile         # Configuración Docker para el backend
 ├── frontend/              # Frontend - Interfaz web interactiva
@@ -267,11 +292,18 @@ simulacion-inventario/
 
 #### Backend (`api/`)
 
-##### Punto de Entrada (`api/`)
-- **`main.py`**: Punto de entrada de la aplicación FastAPI. Configura la aplicación, middleware CORS, inyección de dependencias y registra los controladores.
-- **`dependency_injection.py`**: Configuración de inyección de dependencias. Define la función `get_config()` que proporciona la implementación concreta de la interfaz Config.
+##### Punto de Entrada (`api/src/`)
+- **`main.py`**: Punto de entrada de la aplicación FastAPI. Configura la aplicación, middleware CORS, inicializa buses y registra handlers y controladores.
+- **`dependency_injection/`**: Configuración modular de inyección de dependencias
+  - **`config_factory.py`**: Factory para configuración
+  - **`command_bus_factory.py`**: Factory para CommandBus
+  - **`event_bus_factory.py`**: Factory para EventBus
+  - **`simulacion_factory.py`**: Factory para simulación (actualmente vacío)
 
-##### Capa de Infraestructura (`api/infra/`)
+##### Capa de Infraestructura (`api/src/infra/`)
+- **`bus/`**: Implementaciones concretas de buses
+  - **`in_memory_command_bus.py`**: Implementación en memoria del CommandBus
+  - **`in_memory_event_bus.py`**: Implementación en memoria del EventBus
 - **`controllers/`**: Controladores de la API REST
   - **`health_controller.py`**: Endpoint de health check (`/health`)
   - **`simulacion_controller.py`**: Endpoint principal de simulación (`/simular`) con inyección de dependencias
@@ -279,17 +311,30 @@ simulacion-inventario/
   - **`yml_config_repository.py`**: Implementación concreta de la interfaz Config que carga configuración desde archivos YAML
   - **`config.yml`**: Archivo de configuración centralizado con todos los parámetros de la simulación
 
-##### Capa de Aplicación (`api/application/`)
-- **`inventario.py`**: Contiene la clase `SimulacionInventario` que encapsula toda la lógica de simulación del sistema de inventario. Está completamente desacoplado de la configuración y recibe ValueObjects como parámetros.
+##### Capa de Aplicación (`api/src/application/`)
+- **`commands/`**: Comandos CQRS
+  - **`simular_command.py`**: Comando para ejecutar simulación
+- **`handlers/`**: Handlers de comandos y eventos
+  - **`simular_command_handler.py`**: Handler que procesa el comando de simulación
+  - **`demanda_handler.py`**: Handler para eventos de demanda
+  - **`llegada_pedido_handler.py`**: Handler para eventos de llegada de pedidos
+- **`inventario.py`**: Contiene la clase `SimulacionInventario` que encapsula toda la lógica de simulación del sistema de inventario.
 
 ##### Capa de Dominio (`api/src/domain/`)
+- **`bus/`**: Interfaces de buses
+  - **`command_bus.py`**: Interfaz del CommandBus
+  - **`event_bus.py`**: Interfaz del EventBus
+- **`handlers/`**: Interfaces de handlers
+  - **`command_handler.py`**: Interfaz para handlers de comandos
+  - **`event_handler.py`**: Interfaz para handlers de eventos
 - **`dto/`**: Data Transfer Objects para comunicación entre capas
   - **`simulacion_request.py`**: DTO para recibir requests de simulación
   - **`politica_abastecimiento.py`**: DTO para representar políticas de abastecimiento
 - **`models/`**: Modelos de dominio
   - **`evento.py`**: Define la jerarquía de eventos para la simulación discreta de eventos
-  - **`resultados.py`**: Define la clase ResultadosPolitica para encapsular los resultados de la simulación
+  - **`resultados_politica.py`**: Define la clase ResultadosPolitica para encapsular los resultados de la simulación
   - **`fel.py`**: Define la clase FEL (Future Event List) para gestionar eventos futuros en la simulación
+  - **`simulation_context.py`**: Contexto de simulación que encapsula resultados y configuración
 - **`value_objects/`**: Value Objects del dominio con validaciones de negocio
   - **`cantidad.py`**: Value Object para cantidades con validación de no negatividad
   - **`precio.py`**: Value Object para precios con validación de no negatividad
@@ -318,6 +363,10 @@ simulacion-inventario/
 - **`test_eventos.py`**: Tests para la jerarquía de eventos (EventoBase, EventoDemanda, EventoLlegadaPedido)
 - **`test_resultados.py`**: Tests para la clase ResultadosPolitica
 - **`test_fel.py`**: Tests para la clase FEL (Future Event List)
+- **`test_command_bus.py`**: Tests para el CommandBus y handlers de comandos
+- **`test_event_bus.py`**: Tests para el EventBus y handlers de eventos
+- **`test_event_handlers.py`**: Tests para handlers de eventos específicos
+- **`test_inventario.py`**: Tests para la clase SimulacionInventario
 
 ##### Configuración (`api/`)
 - **`requirements.txt`**: Lista de dependencias Python necesarias para ejecutar el proyecto
@@ -346,6 +395,118 @@ simulacion-inventario/
 - **`esquema.md`**: Diagrama de flujo que explica el funcionamiento de la simulación.
 
 ## 🏗️ Arquitectura de Dominio
+
+### Patrón CQRS (Command Query Responsibility Segregation)
+
+El sistema implementa un patrón CQRS simplificado para separar las operaciones de lectura y escritura:
+
+#### CommandBus
+
+```python
+class CommandBus(ABC):
+    @abstractmethod
+    def register_handler(self, command_type: Type[T], handler: CommandHandler[T]) -> None:
+        pass
+    
+    @abstractmethod
+    def execute(self, command: T) -> Any:
+        pass
+```
+
+**Características:**
+- **Inyección de dependencias**: Los handlers reciben sus dependencias en el constructor
+- **Registro dinámico**: Los handlers se registran en el arranque de la aplicación
+- **Ejecución tipada**: Cada comando tiene su handler específico
+
+#### Comandos
+
+```python
+@dataclass
+class SimularCommand:
+    politicas: List[PoliticaInventario]
+    configuracion: ConfiguracionSimulacion
+```
+
+#### Handlers de Comandos
+
+```python
+class SimularCommandHandler(CommandHandler[SimularCommand]):
+    def __init__(self, event_bus: EventBus):
+        self.event_bus = event_bus
+    
+    def handle(self, command: SimularCommand) -> List[dict]:
+        resultados = []
+        for politica in command.politicas:
+            simulacion = SimulacionInventario(politica, command.configuracion, self.event_bus)
+            resultados.append(simulacion.ejecutar())
+        return resultados
+```
+
+### Sistema de Eventos
+
+El sistema implementa un patrón de eventos para la simulación discreta de eventos:
+
+#### EventBus
+
+```python
+class EventBus(ABC):
+    @abstractmethod
+    def register_handler(self, event_type: Type[T], handler: EventHandler[T]) -> None:
+        pass
+    
+    @abstractmethod
+    def dispatch(self, evento: Evento, context: SimulationContext) -> None:
+        pass
+```
+
+#### Handlers de Eventos
+
+```python
+class DemandaEventHandler(EventHandler[EventoDemanda]):
+    def handle(self, evento: EventoDemanda, context: SimulationContext) -> None:
+        d = evento.get_cantidad()
+        inventario_actual = context.resultados.obtener_inventario()
+        ventas = min(d, inventario_actual)
+        faltante = max(0, d - inventario_actual)
+        context.resultados.actualizar_inventario(-ventas)
+        context.resultados.agregar_ingreso(ventas * context.configuracion.get_precio_venta())
+        context.resultados.agregar_costo_faltante(faltante * context.configuracion.get_costo_faltante())
+
+class LlegadaPedidoEventHandler(EventHandler[EventoLlegadaPedido]):
+    def handle(self, evento: EventoLlegadaPedido, context: SimulationContext) -> None:
+        context.resultados.actualizar_inventario(evento.get_cantidad())
+```
+
+### Inyección de Dependencias
+
+El sistema utiliza inyección de dependencias para desacoplar componentes:
+
+#### Factories
+
+```python
+# dependency_injection/command_bus_factory.py
+def get_command_bus() -> CommandBus:
+    return InMemoryCommandBus()
+
+# dependency_injection/event_bus_factory.py
+def get_event_bus() -> EventBus:
+    return InMemoryEventBus()
+```
+
+#### Configuración en main.py
+
+```python
+# Inicialización y registro de handlers en los buses (singleton)
+command_bus = get_command_bus()
+event_bus = get_event_bus()
+
+# Registrar handlers del EventBus
+event_bus.register_handler(EventoDemanda, DemandaEventHandler())
+event_bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
+
+# Registrar handler del CommandBus con EventBus como dependencia
+command_bus.register_handler(SimularCommand, SimularCommandHandler(event_bus))
+```
 
 ### Value Objects
 
@@ -687,14 +848,13 @@ class DemandaEventHandler:
         context.resultados.agregar_costo_faltante(faltante * context.configuracion.get_costo_faltante())
 ```
 
-#### Ejemplo de uso del EventDispatcher
+#### Ejemplo de uso del EventBus
 
 ```python
-dispatcher = EventDispatcher([
-    DemandaEventHandler(),
-    LlegadaPedidoEventHandler()
-])
-dispatcher.dispatch(evento, context)
+event_bus = InMemoryEventBus()
+event_bus.register_handler(EventoDemanda, DemandaEventHandler())
+event_bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
+event_bus.dispatch(evento, context)
 ```
 
 ---

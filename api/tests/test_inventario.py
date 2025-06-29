@@ -2,6 +2,9 @@ import pytest
 from api.src.application.inventario import SimulacionInventario
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
 from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
+from api.src.dependency_injection import get_event_bus
+from api.src.application.handlers.demanda_handler import DemandaEventHandler
+from api.src.application.handlers.llegada_pedido_handler import LlegadaPedidoEventHandler
 
 # Valores dummy para los parámetros requeridos
 PARAMS = dict(
@@ -16,6 +19,13 @@ PARAMS = dict(
     demanda_media=10,
     dias_simulacion=30
 )
+
+def get_configured_event_bus():
+    """Helper para crear un EventBus configurado con handlers registrados"""
+    event_bus = get_event_bus()
+    event_bus.register_handler(EventoDemanda, DemandaEventHandler())
+    event_bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
+    return event_bus
 
 class TestInventario:
     """Tests para verificar que la refactorización con isinstance funciona correctamente."""
@@ -38,8 +48,9 @@ class TestInventario:
             dias_simulacion=10
         )
         
-        # Ejecutar simulación
-        simulacion = SimulacionInventario(politica, configuracion)
+        # Ejecutar simulación instanciando directamente
+        event_bus = get_configured_event_bus()
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         resultado = simulacion.ejecutar()
         
         # Verificar que el resultado contiene los campos esperados
@@ -85,7 +96,8 @@ class TestInventario:
         )
         
         # Si la simulación funciona, significa que los eventos se crean correctamente
-        simulacion = SimulacionInventario(politica, configuracion)
+        event_bus = get_configured_event_bus()
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         resultado = simulacion.ejecutar()
         
         # Verificar que la simulación completó sin errores
@@ -119,21 +131,23 @@ class TestSimulacionInventario:
         """Test que verifica que se puede crear una instancia de SimulacionInventario"""
         politica = PoliticaInventario.from_valores(punto_reorden=5, cantidad_pedido=15)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
+        event_bus = get_configured_event_bus()
         
-        simulacion = SimulacionInventario(politica, configuracion)
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         assert simulacion.politica == politica
         assert simulacion.configuracion == configuracion
         assert simulacion.context is not None
         assert simulacion.fel is not None
-        assert simulacion.event_dispatcher is not None
+        assert simulacion.event_bus is not None
     
     def test_inicializar_fel(self):
         """Test que verifica que la FEL se inicializa correctamente"""
         politica = PoliticaInventario.from_valores(punto_reorden=5, cantidad_pedido=15)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
+        event_bus = get_configured_event_bus()
         
-        simulacion = SimulacionInventario(politica, configuracion)
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Verificar que la FEL tiene al menos un evento inicial
         assert simulacion.fel.hay_eventos() is True
@@ -147,8 +161,9 @@ class TestSimulacionInventario:
         """Test que verifica que el contexto se crea correctamente"""
         politica = PoliticaInventario.from_valores(punto_reorden=5, cantidad_pedido=15)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
+        event_bus = get_configured_event_bus()
         
-        simulacion = SimulacionInventario(politica, configuracion)
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Verificar que el contexto tiene los datos correctos
         assert simulacion.context.resultados.r == 5
@@ -160,8 +175,9 @@ class TestSimulacionInventario:
         """Test que verifica la lógica de punto de reorden"""
         politica = PoliticaInventario.from_valores(punto_reorden=5, cantidad_pedido=15)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
+        event_bus = get_configured_event_bus()
         
-        simulacion = SimulacionInventario(politica, configuracion)
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Con inventario inicial de 10 y punto de reorden de 5, no debería ser punto de reorden
         assert simulacion._es_punto_de_reorden() is False
@@ -178,11 +194,9 @@ class TestSimulacionInventario:
         """Test que verifica que se procesa un evento correctamente"""
         politica = PoliticaInventario.from_valores(punto_reorden=5, cantidad_pedido=15)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
+        event_bus = get_configured_event_bus()
         
-        simulacion = SimulacionInventario(politica, configuracion)
-        
-        # Verificar que los handlers están registrados
-        assert len(simulacion.event_dispatcher.handlers) == 2
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Crear un evento de demanda
         evento = EventoDemanda(1, 3)
@@ -198,8 +212,9 @@ class TestSimulacionInventario:
         """Test que verifica que se agrega el costo de almacenamiento"""
         politica = PoliticaInventario.from_valores(punto_reorden=5, cantidad_pedido=15)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
+        event_bus = get_configured_event_bus()
         
-        simulacion = SimulacionInventario(politica, configuracion)
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Inventario inicial es 10, costo de almacenar es 1.0
         simulacion._agregar_costo_almacenamiento()
@@ -211,8 +226,9 @@ class TestSimulacionInventario:
         """Test que verifica el cálculo del día de entrega"""
         politica = PoliticaInventario.from_valores(punto_reorden=5, cantidad_pedido=15)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
+        event_bus = get_configured_event_bus()
         
-        simulacion = SimulacionInventario(politica, configuracion)
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Crear un evento en el día 5
         evento = EventoDemanda(5, 3)
@@ -230,8 +246,9 @@ class TestSimulacionInventario:
         """Test que verifica que se ejecuta una simulación completa"""
         politica = PoliticaInventario.from_valores(punto_reorden=5, cantidad_pedido=15)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
+        event_bus = get_configured_event_bus()
         
-        simulacion = SimulacionInventario(politica, configuracion)
+        simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Ejecutar la simulación
         resultados = simulacion.ejecutar()

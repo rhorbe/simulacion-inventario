@@ -166,9 +166,9 @@ class TestSimulacionInventario:
         simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Verificar que el contexto tiene los datos correctos
-        assert simulacion.context.resultados.r == 5
-        assert simulacion.context.resultados.Q == 15
-        assert simulacion.context.resultados.inventario == 10  # inventario_inicial
+        assert simulacion.context.r == 5
+        assert simulacion.context.Q == 15
+        assert simulacion.context.inventario == 10  # inventario_inicial
         assert simulacion.context.configuracion == configuracion
     
     def test_es_punto_de_reorden(self):
@@ -180,15 +180,15 @@ class TestSimulacionInventario:
         simulacion = SimulacionInventario(politica, configuracion, event_bus)
         
         # Con inventario inicial de 10 y punto de reorden de 5, no debería ser punto de reorden
-        assert simulacion._es_punto_de_reorden() is False
+        assert simulacion.context.obtener_inventario() >= politica.get_punto_reorden()
         
         # Reducir inventario a 3 (menor que 5)
-        simulacion.context.resultados.actualizar_inventario(-7)
-        assert simulacion._es_punto_de_reorden() is True
+        simulacion.context.actualizar_inventario(-7)
+        assert simulacion.context.obtener_inventario() < politica.get_punto_reorden()
         
         # Incrementar inventario a 8 (mayor que 5)
-        simulacion.context.resultados.actualizar_inventario(5)
-        assert simulacion._es_punto_de_reorden() is False
+        simulacion.context.actualizar_inventario(5)
+        assert simulacion.context.obtener_inventario() >= politica.get_punto_reorden()
     
     def test_procesar_evento(self):
         """Test que verifica que se procesa un evento correctamente"""
@@ -201,12 +201,12 @@ class TestSimulacionInventario:
         # Crear un evento de demanda
         evento = EventoDemanda(1, 3)
         
-        # Procesar el evento
-        simulacion._procesar_evento(evento)
+        # Procesar el evento usando el event bus
+        simulacion.event_bus.dispatch(evento, simulacion.context)
         
         # Verificar que se procesó correctamente (inventario inicial 10 - demanda 3 = 7)
-        assert simulacion.context.resultados.obtener_inventario() == 7
-        assert simulacion.context.resultados.ingresos == 300.0  # 3 * 100
+        assert simulacion.context.obtener_inventario() == 7
+        assert simulacion.context.ingresos == 300.0  # 3 * 100
     
     def test_agregar_costo_almacenamiento(self):
         """Test que verifica que se agrega el costo de almacenamiento"""
@@ -220,7 +220,7 @@ class TestSimulacionInventario:
         simulacion._agregar_costo_almacenamiento()
         
         # Verificar que se agregó el costo correcto
-        assert simulacion.context.resultados.costo_almacenamiento == 10.0  # 10 * 1.0
+        assert simulacion.context.costo_almacenamiento == 10.0  # 10 * 1.0
     
     def test_calcular_dia_entrega(self):
         """Test que verifica el cálculo del día de entrega"""

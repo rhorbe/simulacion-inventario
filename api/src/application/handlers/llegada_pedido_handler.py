@@ -10,4 +10,4 @@ class LlegadaPedidoEventHandler(EventHandler[EventoLlegadaPedido]):
     
     def handle(self, evento: EventoLlegadaPedido, context: SimulationContext) -> None:
         cantidad = evento.get_cantidad()
-        context.resultados.actualizar_inventario(cantidad) 
+        context.actualizar_inventario(cantidad) 

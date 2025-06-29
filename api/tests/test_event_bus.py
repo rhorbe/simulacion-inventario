@@ -4,7 +4,6 @@ from api.src.infra.bus.in_memory_event_bus import InMemoryEventBus
 from api.src.application.handlers.demanda_handler import DemandaEventHandler
 from api.src.application.handlers.llegada_pedido_handler import LlegadaPedidoEventHandler
 from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
-from api.src.domain.models.resultados_politica import ResultadosPolitica
 from api.src.domain.models.simulation_context import SimulationContext
 from api.src.domain.value_objects.configuracion_simulacion import ConfiguracionSimulacion
 from api.src.domain.value_objects.precio_venta import PrecioVenta
@@ -33,15 +32,14 @@ class TestEventBus:
         bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
         
         evento = EventoDemanda(10, 5)
-        resultados = ResultadosPolitica(r=10, Q=20, inventario=10)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
-        context = SimulationContext(resultados=resultados, configuracion=configuracion)
+        context = SimulationContext(r=10, Q=20, inventario=10, configuracion=configuracion)
         
         bus.dispatch(evento, context)
         
         # Verificar que se procesó correctamente
-        assert context.resultados.obtener_inventario() == 5  # 10 - 5
-        assert context.resultados.ingresos == 500.0  # 5 * 100
+        assert context.obtener_inventario() == 5  # 10 - 5
+        assert context.ingresos == 500.0  # 5 * 100
     
     def test_dispatch_llegada_pedido_event(self):
         bus = InMemoryEventBus()
@@ -49,14 +47,13 @@ class TestEventBus:
         bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
         
         evento = EventoLlegadaPedido(10, 15)
-        resultados = ResultadosPolitica(r=10, Q=20, inventario=5)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
-        context = SimulationContext(resultados=resultados, configuracion=configuracion)
+        context = SimulationContext(r=10, Q=20, inventario=5, configuracion=configuracion)
         
         bus.dispatch(evento, context)
         
         # Verificar que se procesó correctamente
-        assert context.resultados.obtener_inventario() == 20  # 5 + 15
+        assert context.obtener_inventario() == 20  # 5 + 15
     
     def test_dispatch_unknown_event_raises_error(self):
         bus = InMemoryEventBus()
@@ -68,9 +65,8 @@ class TestEventBus:
             pass
         
         evento = EventoDesconocido()
-        resultados = ResultadosPolitica(r=10, Q=20, inventario=5)
         configuracion = ConfiguracionSimulacion.from_parametros(**PARAMS)
-        context = SimulationContext(resultados=resultados, configuracion=configuracion)
+        context = SimulationContext(r=10, Q=20, inventario=5, configuracion=configuracion)
         
         with pytest.raises(ValueError, match="No se encontró handler para el evento"):
             bus.dispatch(evento, context)

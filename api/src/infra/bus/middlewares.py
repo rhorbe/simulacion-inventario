@@ -1,156 +1,98 @@
-import time
-import logging
+import json
+import socket
+from datetime import datetime
 from typing import Any, Callable
 from api.src.domain.bus.middleware import Middleware, MiddlewareContext
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 class LoggingMiddleware(Middleware):
-    """Middleware para logging de comandos y eventos"""
+    def __init__(self, logger_name: str = "simulacion_inventario"):
+        self.host = 'logstash'
+        self.port = 5000
+        self.socket = None
     
-    async def process(self, context: MiddlewareContext, next_middleware: Callable) -> Any:
-        command_or_event = context.command_or_event
-        event_type = command_or_event.__class__.__name__
-        
-        logger.info(f"🔄 Procesando {event_type}: {command_or_event}")
-        
+    def _send_log(self, log_data: dict):
+        """Envía log JSON directamente a Logstash"""
         try:
-            result = await next_middleware(context)
-            logger.info(f"✅ {event_type} procesado exitosamente")
-            return result
-        except Exception as e:
-            logger.error(f"❌ Error procesando {event_type}: {str(e)}")
-            raise
-
-class TimingMiddleware(Middleware):
-    """Middleware para medir el tiempo de ejecución"""
-    
-    async def process(self, context: MiddlewareContext, next_middleware: Callable) -> Any:
-        start_time = time.time()
-        event_type = context.command_or_event.__class__.__name__
-        
-        try:
-            result = await next_middleware(context)
-            execution_time = time.time() - start_time
-            logger.info(f"⏱️ {event_type} ejecutado en {execution_time:.4f} segundos")
-            return result
-        except Exception as e:
-            execution_time = time.time() - start_time
-            logger.error(f"⏱️ {event_type} falló después de {execution_time:.4f} segundos")
-            raise
-
-class MetricsMiddleware(Middleware):
-    """Middleware para recolectar métricas"""
-    
-    def __init__(self):
-        self.metrics = {
-            'total_processed': 0,
-            'successful': 0,
-            'failed': 0,
-            'by_type': {}
-        }
-    
-    async def process(self, context: MiddlewareContext, next_middleware: Callable) -> Any:
-        event_type = context.command_or_event.__class__.__name__
-        
-        # Actualizar métricas
-        self.metrics['total_processed'] += 1
-        if event_type not in self.metrics['by_type']:
-            self.metrics['by_type'][event_type] = {
-                'total': 0,
-                'successful': 0,
-                'failed': 0
+            if self.socket is None:
+                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.socket.connect((self.host, self.port))
+            
+            # Crear mensaje JSON con timestamp
+            log_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "level": "INFO",
+                "logger": "simulacion_inventario",
+                "message": json.dumps(log_data)
             }
-        self.metrics['by_type'][event_type]['total'] += 1
+            
+            # Enviar JSON + newline
+            json_data = json.dumps(log_entry) + '\n'
+            self.socket.send(json_data.encode('utf-8'))
+            
+        except Exception as e:
+            print(f"Error enviando log a Logstash: {e}")
+            # Marcar socket como inválido para reconectar en el próximo intento
+            self.socket = None
+    
+    def _get_traceback(self):
+        """Obtiene el traceback actual"""
+        import traceback
+        return traceback.format_exc()
+    
+    async def process(self, context: MiddlewareContext, next_middleware: Callable) -> Any:
+        """Middleware principal que loggea antes y después del procesamiento"""
+        start_time = datetime.now()
+        message = context.command_or_event
+        
+        # Log pre-procesamiento
+        log_data = {
+            "type": "message_processing",
+            "phase": "pre_handle",
+            "message_type": type(message).__name__,
+            "message_id": getattr(message, 'id', 'unknown'),
+            "timestamp": start_time.isoformat(),
+            "message_data": message.to_json() if hasattr(message, 'to_json') else str(message)
+        }
+        self._send_log(log_data)
         
         try:
+            # Procesar el mensaje
             result = await next_middleware(context)
-            self.metrics['successful'] += 1
-            self.metrics['by_type'][event_type]['successful'] += 1
+            
+            # Log post-procesamiento exitoso
+            end_time = datetime.now()
+            processing_time = (end_time - start_time).total_seconds()
+            
+            log_data = {
+                "type": "message_processing",
+                "phase": "post_handle_success",
+                "message_type": type(message).__name__,
+                "message_id": getattr(message, 'id', 'unknown'),
+                "timestamp": end_time.isoformat(),
+                "processing_time_ms": processing_time * 1000,
+                "result_type": type(result).__name__ if result else None
+            }
+            self._send_log(log_data)
+            
             return result
+            
         except Exception as e:
-            self.metrics['failed'] += 1
-            self.metrics['by_type'][event_type]['failed'] += 1
-            raise
-    
-    def get_metrics(self) -> dict:
-        """Retorna las métricas recolectadas"""
-        return self.metrics.copy()
-
-class ValidationMiddleware(Middleware):
-    """Middleware para validación de comandos y eventos"""
-    
-    async def process(self, context: MiddlewareContext, next_middleware: Callable) -> Any:
-        command_or_event = context.command_or_event
-        event_type = command_or_event.__class__.__name__
-        
-        # Validaciones básicas
-        if hasattr(command_or_event, 'get_dia') and command_or_event.get_dia() < 0:
-            raise ValueError(f"Día inválido en {event_type}: {command_or_event.get_dia()}")
-        
-        if hasattr(command_or_event, 'get_cantidad') and command_or_event.get_cantidad() <= 0:
-            raise ValueError(f"Cantidad inválida en {event_type}: {command_or_event.get_cantidad()}")
-        
-        logger.info(f"✅ {event_type} validado correctamente")
-        return await next_middleware(context)
-
-class CachingMiddleware(Middleware):
-    """Middleware para cache de resultados"""
-    
-    def __init__(self):
-        self.cache = {}
-    
-    async def process(self, context: MiddlewareContext, next_middleware: Callable) -> Any:
-        command_or_event = context.command_or_event
-        cache_key = self._generate_cache_key(command_or_event)
-        
-        # Verificar cache
-        if cache_key in self.cache:
-            logger.info(f"💾 Resultado obtenido del cache para {command_or_event.__class__.__name__}")
-            return self.cache[cache_key]
-        
-        # Ejecutar y cachear
-        result = await next_middleware(context)
-        self.cache[cache_key] = result
-        logger.info(f"💾 Resultado cacheado para {command_or_event.__class__.__name__}")
-        
-        return result
-    
-    def _generate_cache_key(self, command_or_event: Any) -> str:
-        """Genera una clave única para el cache"""
-        return f"{command_or_event.__class__.__name__}_{hash(str(command_or_event))}"
-    
-    def clear_cache(self) -> None:
-        """Limpia el cache"""
-        self.cache.clear()
-        logger.info("🗑️ Cache limpiado")
-
-class RetryMiddleware(Middleware):
-    """Middleware para reintentos automáticos"""
-    
-    def __init__(self, max_retries: int = 3, delay: float = 0.1):
-        self.max_retries = max_retries
-        self.delay = delay
-    
-    async def process(self, context: MiddlewareContext, next_middleware: Callable) -> Any:
-        last_exception = None
-        
-        for attempt in range(self.max_retries + 1):
-            try:
-                return await next_middleware(context)
-            except Exception as e:
-                last_exception = e
-                if attempt < self.max_retries:
-                    logger.warning(f"🔄 Reintento {attempt + 1}/{self.max_retries} para {context.command_or_event.__class__.__name__}")
-                    await self._delay()
-                else:
-                    logger.error(f"❌ Agotados los reintentos para {context.command_or_event.__class__.__name__}")
-        
-        raise last_exception
-    
-    async def _delay(self) -> None:
-        """Espera antes del siguiente reintento"""
-        import asyncio
-        await asyncio.sleep(self.delay) 
+            # Log post-procesamiento con error
+            end_time = datetime.now()
+            processing_time = (end_time - start_time).total_seconds()
+            
+            log_data = {
+                "type": "message_processing",
+                "phase": "post_handle_error",
+                "message_type": type(message).__name__,
+                "message_id": getattr(message, 'id', 'unknown'),
+                "timestamp": end_time.isoformat(),
+                "processing_time_ms": processing_time * 1000,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "error_traceback": self._get_traceback()
+            }
+            self._send_log(log_data)
+            
+            raise 

@@ -1,6 +1,6 @@
 import pytest
 from api.src.infra.bus.in_memory_command_bus import InMemoryCommandBus
-from api.src.application.commands.simular_command import SimularCommand
+from api.src.domain.models.command import SimularCommand
 from api.src.application.handlers.simular_command_handler import SimularCommandHandler
 from api.src.domain.value_objects import PoliticaInventario, ConfiguracionSimulacion
 from api.src.infra.dependency_injection import get_event_bus
@@ -86,7 +86,7 @@ class TestCommandBus:
         command = SimularCommand(politicas=[politica], configuracion=configuracion)
         
         # Verificar que se lanza error
-        with pytest.raises(ValueError, match="No handler registrado para"):
+        with pytest.raises(ValueError, match="No se encontró handler para"):
             bus.execute(command)
     
     def test_execute_multiple_policies(self):

@@ -59,11 +59,7 @@ class MiddlewareChain:
             Resultado del procesamiento
         """
         context = MiddlewareContext(command_or_event=command_or_event)
-        
-        # Crear la cadena de llamadas
         chain = self._build_chain(final_handler)
-        
-        # Ejecutar el primer middleware
         return await chain(context)
     
     def _build_chain(self, final_handler: Callable) -> Callable:
@@ -71,7 +67,14 @@ class MiddlewareChain:
         
         async def chain(context: MiddlewareContext) -> Any:
             if not self.middlewares:
-                return await final_handler(context.command_or_event)
+                result = final_handler(context.command_or_event)
+                # Si el resultado es None, retornar None en lugar de intentar hacer await
+                if result is None:
+                    return None
+                # Si el resultado es awaitable, hacer await
+                if hasattr(result, '__await__'):
+                    return await result
+                return result
             
             current_middleware = self.middlewares[0]
             remaining_middlewares = self.middlewares[1:]

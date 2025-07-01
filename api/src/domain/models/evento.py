@@ -1,23 +1,22 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from .message import BaseMessage
 
 
-@dataclass
-class Evento(ABC):
+class Evento(BaseMessage):
     """
     Clase base abstracta para todos los eventos de la simulación.
     Define la interfaz común que deben implementar todos los eventos.
     """
-    dia: int
-    cantidad: int
-
-    def get_dia(self) -> int:
-        """Retorna el día en que ocurre el evento."""
-        return self.dia
     
     @abstractmethod
-    def get_tipo(self) -> str:
-        """Retorna el tipo del evento."""
+    def get_dia(self) -> int:
+        """Retorna el día en que ocurre el evento."""
+        pass
+    
+    @abstractmethod
+    def get_tipo_evento(self) -> str:
+        """Retorna el tipo específico del evento (demanda, llegada_pedido, etc.)"""
         pass
     
     @abstractmethod
@@ -28,14 +27,18 @@ class Evento(ABC):
     def get_cantidad(self) -> int:
         return self.cantidad
 
-
 @dataclass
 class EventoDemanda(Evento):
     """
     Evento que representa una demanda de productos.
     """
-
-    def get_tipo(self) -> str:
+    dia: int
+    cantidad: int
+    
+    def get_dia(self) -> int:
+        return self.dia
+    
+    def get_tipo_evento(self) -> str:
         return "demanda"
     
     def __str__(self) -> str:
@@ -46,8 +49,13 @@ class EventoLlegadaPedido(Evento):
     """
     Evento que representa la llegada de un pedido.
     """
+    dia: int
+    cantidad: int
     
-    def get_tipo(self) -> str:
+    def get_dia(self) -> int:
+        return self.dia
+    
+    def get_tipo_evento(self) -> str:
         return "llegada_pedido"
 
     def __str__(self) -> str:

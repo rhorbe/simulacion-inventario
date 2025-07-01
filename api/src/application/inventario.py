@@ -29,20 +29,16 @@ class SimulacionInventario:
         """Crea el contexto de simulación"""
         return SimulationContext.from_politica_and_config(self.politica, self.configuracion)
     
-    def ejecutar(self) -> dict:
+    async def ejecutar(self) -> dict:
         """Ejecuta la simulación completa"""
         while self.fel.hay_eventos():
             evento = self.fel.siguiente()
-            
             if evento.get_dia() >= self.configuracion.get_dias_simulacion():
                 break
-
-            self.event_bus.dispatch(evento, self.context)
-
+            await self.event_bus.dispatch(evento, self.context)
             self._revision(evento)
             self._agregar_costo_almacenamiento()
             self._programar_siguiente_demanda(evento)
-        
         return self.context.to_dict()
 
     def _revision(self, evento: Evento) -> None:

@@ -80,11 +80,11 @@ class FEL:
         if not self._eventos and not self._evento_actual:
             return "FEL: []"
         
-        eventos_str = ", ".join([f"{evento.get_tipo()}(día={evento.get_dia()})" for evento in self._eventos])
+        eventos_str = ", ".join([f"{type(evento).__name__}(día={evento.get_dia()})" for evento in self._eventos])
         fel_str = f"FEL: [{eventos_str}]"
         
         if self._evento_actual:
-            fel_str += f" | Actual: {self._evento_actual.get_tipo()}(día={self._evento_actual.get_dia()})"
+            fel_str += f" | Actual: {type(self._evento_actual).__name__}(día={self._evento_actual.get_dia()})"
         
         return fel_str
     

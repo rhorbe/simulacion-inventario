@@ -36,6 +36,84 @@ services:
       - simulacion-network
     restart: unless-stopped
 
+  # Elasticsearch - Motor de búsqueda y análisis
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: simulacion-inventario-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - cluster.name=simulacion-inventario-cluster
+      - node.name=simulacion-inventario-node
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - elasticsearch_logs:/usr/share/elasticsearch/logs
+    networks:
+      - simulacion-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # Kibana - Interfaz web para visualización y análisis
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: simulacion-inventario-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+    ports:
+      - "5601:5601"
+    volumes:
+      - kibana_data:/usr/share/kibana/data
+    networks:
+      - simulacion-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # Logstash - Procesamiento y transformación de logs
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: simulacion-inventario-logstash
+    environment:
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+    ports:
+      - "5044:5044"   # Beats input
+      - "5000:5000"   # TCP input
+      - "5000:5000/udp"   # UDP input
+      - "9600:9600"   # API
+    volumes:
+      - logstash_data:/usr/share/logstash/data
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    networks:
+      - simulacion-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600/_node/stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
 networks:
   simulacion-network:
     driver: bridge
@@ -44,4 +122,12 @@ networks:
         - subnet: 172.20.0.0/16
 
 volumes:
-  api_data: 
+  api_data:
+  elasticsearch_data:
+    driver: local
+  elasticsearch_logs:
+    driver: local
+  kibana_data:
+    driver: local
+  logstash_data:
+    driver: local 

@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Type, Any, List
+from typing import TypeVar, Generic, Type, Any
 from ..models.evento import Evento
 from ..models.simulation_context import SimulationContext
-from .middleware import Middleware
+from .bus import Bus
 
-T = TypeVar('T', bound=Evento)
+T = TypeVar('T')
 
 class EventHandler(ABC, Generic[T]):
     """Interfaz para handlers de eventos"""
@@ -15,11 +15,11 @@ class EventHandler(ABC, Generic[T]):
         pass
     
     @abstractmethod
-    def handle(self, evento: T, context: SimulationContext) -> None:
+    def handle(self, event: T, context: Any = None) -> Any:
         """Maneja el evento con el contexto dado"""
         pass
 
-class EventBus(ABC):
+class EventBus(Bus):
     """Interfaz para el bus de eventos con soporte para middlewares"""
     
     @abstractmethod
@@ -28,16 +28,6 @@ class EventBus(ABC):
         pass
     
     @abstractmethod
-    def dispatch(self, evento: Evento, context: SimulationContext) -> None:
+    async def dispatch(self, event: T, context: Any = None) -> None:
         """Despacha un evento a través de la cadena de middlewares"""
-        pass
-    
-    @abstractmethod
-    def add_middleware(self, middleware: Middleware) -> None:
-        """Agrega un middleware al bus"""
-        pass
-    
-    @abstractmethod
-    def get_middlewares(self) -> List[Middleware]:
-        """Retorna la lista de middlewares configurados"""
         pass 

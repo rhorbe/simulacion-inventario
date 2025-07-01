@@ -9,6 +9,7 @@ from .plazo_de_entrega import PlazoDeEntrega
 from .costo_pedido import CostoPedido
 from .costo_almacenar import CostoAlmacenar
 from .costo_faltante import CostoFaltante
+from .dias_simulacion import DiasSimulacion
 from .politica_inventario import PoliticaInventario
 from .configuracion_simulacion import ConfiguracionSimulacion
 
@@ -23,6 +24,7 @@ __all__ = [
     'CostoPedido',
     'CostoAlmacenar',
     'CostoFaltante',
+    'DiasSimulacion',
     'PoliticaInventario',
     'ConfiguracionSimulacion'
 ] 

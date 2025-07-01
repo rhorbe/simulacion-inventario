@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Type, Any, List
-from .middleware import Middleware
+from typing import TypeVar, Generic, Type, Any
+from .bus import Bus
 
 T = TypeVar('T')
 
@@ -12,7 +12,7 @@ class CommandHandler(ABC, Generic[T]):
         """Maneja el comando y retorna el resultado"""
         pass
 
-class CommandBus(ABC):
+class CommandBus(Bus):
     """Interfaz para el bus de comandos con soporte para middlewares"""
     
     @abstractmethod
@@ -21,16 +21,6 @@ class CommandBus(ABC):
         pass
     
     @abstractmethod
-    def execute(self, command: T) -> Any:
+    async def execute(self, command: T) -> Any:
         """Ejecuta un comando a través de la cadena de middlewares"""
-        pass
-    
-    @abstractmethod
-    def add_middleware(self, middleware: Middleware) -> None:
-        """Agrega un middleware al bus"""
-        pass
-    
-    @abstractmethod
-    def get_middlewares(self) -> List[Middleware]:
-        """Retorna la lista de middlewares configurados"""
         pass 

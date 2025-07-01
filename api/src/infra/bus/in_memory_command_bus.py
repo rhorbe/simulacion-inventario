@@ -1,7 +1,6 @@
 from typing import Dict, Type, Any, List
 from api.src.domain.bus.command_bus import CommandBus, CommandHandler
 from api.src.domain.bus.middleware import Middleware, MiddlewareChain
-import asyncio
 
 
 class InMemoryCommandBus(CommandBus):
@@ -21,7 +20,7 @@ class InMemoryCommandBus(CommandBus):
         """
         self._handlers[command_type] = handler
     
-    def execute(self, command: Any) -> Any:
+    async def execute(self, command: Any) -> Any:
         """
         Ejecuta un comando usando el handler registrado y la cadena de middlewares
         
@@ -43,23 +42,10 @@ class InMemoryCommandBus(CommandBus):
         
         # Si no hay middlewares, ejecutar directamente
         if not self._middleware_chain.middlewares:
-            return handler.handle(command)
+            return await handler.handle(command)
         
         # Ejecutar a través de la cadena de middlewares
-        async def async_execute():
-            return await self._middleware_chain.execute(command, handler.handle)
-        
-        # Ejecutar de forma síncrona (para mantener compatibilidad)
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Si ya hay un loop corriendo, crear uno nuevo
-                return asyncio.run(async_execute())
-            else:
-                return loop.run_until_complete(async_execute())
-        except RuntimeError:
-            # Si no hay loop, crear uno nuevo
-            return asyncio.run(async_execute())
+        return await self._middleware_chain.execute(command, lambda cmd: handler.handle(cmd))
     
     def add_middleware(self, middleware: Middleware) -> None:
         """Agrega un middleware al bus"""

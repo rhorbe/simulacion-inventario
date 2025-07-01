@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.src.infra.controllers import health_controller
-from api.src.infra.controllers import simulacion_controller
-from api.src.infra.dependency_injection import get_command_bus, get_event_bus
-from api.src.application.handlers.simular_command_handler import SimularCommandHandler
-from api.src.application.commands.simular_command import SimularCommand
+from api.src.infra.controllers import health_controller, simulacion_controller
+from api.src.infra.dependency_injection import get_config, get_command_bus, get_event_bus
+from api.src.domain.models.command import SimularCommand
+from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
 from api.src.application.handlers.demanda_handler import DemandaEventHandler
 from api.src.application.handlers.llegada_pedido_handler import LlegadaPedidoEventHandler
-from api.src.domain.models.evento import EventoDemanda, EventoLlegadaPedido
+from api.src.application.handlers.simular_command_handler import SimularCommandHandler
+from api.src.infra.bus.middlewares import LoggingMiddleware
 
 app = FastAPI(title="API de Simulación de Inventario", version="1.0.0")
 
@@ -28,17 +28,31 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# Inicialización y registro de handlers en los buses (singleton)
-command_bus = get_command_bus()
-event_bus = get_event_bus()
-
-# Registrar handlers del EventBus
-event_bus.register_handler(EventoDemanda, DemandaEventHandler())
-event_bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
-
-# Registrar handler del CommandBus con EventBus como dependencia
-command_bus.register_handler(SimularCommand, SimularCommandHandler(event_bus))
+@app.on_event("startup")
+async def startup_event():
+    """Evento de inicio de la aplicación"""
+    # Obtener los buses globales
+    command_bus = get_command_bus()
+    event_bus = get_event_bus()
+    
+    # Agregar middleware de logging
+    logging_middleware = LoggingMiddleware("simulacion_inventario")
+    command_bus.add_middleware(logging_middleware)
+    event_bus.add_middleware(logging_middleware)
+    
+    # Registrar handlers de eventos
+    event_bus.register_handler(EventoDemanda, DemandaEventHandler())
+    event_bus.register_handler(EventoLlegadaPedido, LlegadaPedidoEventHandler())
+    
+    # Registrar handlers de comandos
+    command_bus.register_handler(SimularCommand, SimularCommandHandler(event_bus))
+    
+    print("🚀 API de Simulación de Inventario iniciada correctamente")
 
 # Registrar controladores
 app.include_router(health_controller.router, tags=["health"])
 app.include_router(simulacion_controller.router, tags=["simulacion"])
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

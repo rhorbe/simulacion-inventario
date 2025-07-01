@@ -19,7 +19,7 @@ class TestEventoDemanda:
         assert evento.cantidad == 10
         assert evento.get_dia() == 1
         assert evento.get_cantidad() == 10
-        assert evento.get_tipo() == "demanda"
+        assert evento.get_tipo_evento() == "demanda"
     
     def test_str_evento_demanda(self):
         """Test que verifica la representación en string del evento de demanda."""
@@ -41,7 +41,7 @@ class TestEventoLlegadaPedido:
         assert evento.cantidad == 20
         assert evento.get_dia() == 2
         assert evento.get_cantidad() == 20
-        assert evento.get_tipo() == "llegada_pedido"
+        assert evento.get_tipo_evento() == "llegada_pedido"
     
     def test_str_evento_llegada_pedido(self):
         """Test que verifica la representación en string del evento de llegada de pedido."""
@@ -61,7 +61,7 @@ class TestEventoCompatibilidad:
         evento = EventoDemanda(dia=1, cantidad=10)
         assert evento.get_dia() == 1
         assert evento.get_cantidad() == 10
-        assert evento.get_tipo() == "demanda"
+        assert evento.get_tipo_evento() == "demanda"
     
     def test_str_evento_compatibilidad(self):
         """Test que verifica la representación en string."""
@@ -102,6 +102,6 @@ class TestEventosIntegracion:
         evento_demanda = EventoDemanda(dia=1, cantidad=10)
         evento_llegada = EventoLlegadaPedido(dia=1, cantidad=10)
         
-        assert evento_demanda.get_tipo() == "demanda"
-        assert evento_llegada.get_tipo() == "llegada_pedido"
-        assert evento_demanda.get_tipo() != evento_llegada.get_tipo() 
+        assert evento_demanda.get_tipo_evento() == "demanda"
+        assert evento_llegada.get_tipo_evento() == "llegada_pedido"
+        assert evento_demanda.get_tipo_evento() != evento_llegada.get_tipo_evento() 

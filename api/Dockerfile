@@ -18,6 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código de la aplicación
 COPY . /app/api
 
+# Crear directorio de logs
+RUN mkdir -p /app/logs && chmod 755 /app/logs
+
 # Asegurar que el PYTHONPATH incluya /app
 ENV PYTHONPATH=/app
 

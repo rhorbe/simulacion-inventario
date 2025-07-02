@@ -30,7 +30,14 @@ flowchart TD
     
     G -->|No| P[Calcular resultados finales<br/>- Costo total = almacén + faltante + pedidos<br/>- Ganancia = ingresos - costo_total]
     
-    P --> Q[Imprimir resultados de la política]
+    P --> Q[Mostrar resultados de politica:
+        Ingresos
+        Costo almacenamiento total
+        Costo por faltantes total
+        Costo de pedidos total
+        Costo total
+        Ganancias totales    
+    ]
     
     Q --> R{¿Quedan políticas<br/>por evaluar?}
     
